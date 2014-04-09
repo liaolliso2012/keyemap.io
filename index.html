@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
-        <title>Baidu Map Testã</title>
+        <title>Baidu Map Test</title>
         <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
         <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
         <script type="text/javascript">
@@ -59,8 +59,9 @@
                                     });
                                 }
                                 
-                            } else
-                                alert('ÎÞ·¨Ê¶±ð¸ÃµØÖ·');
+                            } else {
+                                document.write('Wrong address');
+                            }        
                             return false;
                         }
                     });
