@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+        <title>驾车途经点</title>
+        <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
+        <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                var map = new BMap.Map("container");
+                map.centerAndZoom(new BMap.Point(116.404, 39.915), 13);
+                map.addControl(new BMap.NavigationControl());               // 添加平移缩放控件
+                map.addControl(new BMap.ScaleControl());                    // 添加比例尺控件
+                map.addControl(new BMap.OverviewMapControl());              //添加缩略地图控件
+
+                
+                var points = []; // used to store routes
+                var c = 0; // use to store how many time +/- clicked
+                $('.point').blur(function(){
+                    if($(this).val() == '')
+                        return false;
+                    console.log('blur to get lat/lng');
+                    var eid = $(this).attr('id');
+                    var pointid = 0;
+                    if(eid === 'start' || eid === 'end') {
+                        pointid = eid;
+                    } else 
+                        pointid = eid.substr(5);
+                    var pointname = $(this).val();
+                    var url = 'http://api.map.baidu.com/geocoder/v2/?address='+encodeURIComponent($(this).val())+'&output=json&ak=n0xLnhqRKKrS49n5qvuRRNfh&callback=showLocation';
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        dataType: "jsonp",
+                        timeout: 15000,
+                        error: function() {
+                            //alert('请求数据错误，请稍后重试!');
+                            return false;
+                        },
+                        success: function(res) {
+                            if(res.status == 0) {
+                                var location = res.result.location;
+                                var myP1 = new BMap.Point(location.lng, location.lat);
+                                myP1.point_id = pointid;
+                                myP1.point_name = pointname;
+                                console.log(myP1);
+                                var result = $.grep(points, function(e){ return e.point_id == pointid; });
+                                if (result.length == 0) {
+                                    // not found, put the point into object array
+                                    points.push(myP1);
+                                } else if (result.length == 1) {
+                                    // update the point
+                                    $.each(points, function() {
+                                        if (this.point_id == pointid) {
+                                            this.lat = location.lat;
+                                            this.lng = location.lng;
+                                            this.point_name = pointname;
+                                        }
+                                    });
+                                }
+                                
+                            } else
+                                alert('无法识别该地址');
+                            return false;
+                        }
+                    });
+                });
+                
+                $('.btngrp').on('click', '#add_point',function(){
+                    console.log('add point');
+                    c++;
+                    var tmp = $('#onway0').clone(true, false);
+                    tmp.attr('id', 'onway'+c);
+                    tmp.attr('name', 'onway'+c);
+                    tmp.attr('value', '');
+                    tmp.attr('placeholder', '途经点');
+                    tmp.insertAfter($('#onway'+(c-1)));
+                });
+                
+                $('.btngrp').on('click', '#generateRoute',function(){
+                    console.log('generate route');
+                    console.log(points);
+                    console.log(points.length);
+                    map.clearOverlays();                        //清除地图上所有的覆盖物
+                    var startpoint, endpoint;
+                    var onwaypoints = [];
+                    for(i=0;i<points.length;i++) {
+                        if(points[i].point_id === 'start')
+                            startpoint = points[i];
+                        else if(points[i].point_id === 'end')
+                            endpoint = points[i];
+                        else
+                            onwaypoints.push(points[i]);
+                        //driving.search(points[i], points[i+1]);
+                    }
+                    // sort onway points
+                    //console.log('start sorting');
+                    //console.log(onwaypoints);
+                    onwaypoints.sort(sortById);
+                    console.log(onwaypoints);
+                    // 合并起点，途经点，终点
+                    points = $.merge($.merge([startpoint], onwaypoints), [endpoint]);
+                    console.log(points);
+                    console.log(points.length);
+                    // 按点search
+                    var driving = new BMap.DrivingRoute(map,{renderOptions:{enableDragging:true}});    //创建驾车实例
+                    for(i=0;i<points.length-1;i++) {
+                        driving.search(points[i].point_name, points[i+1].point_name);
+                        
+                    }
+                    // search 完成后的操作
+                    driving.setSearchCompleteCallback(function() { 
+                        var pts = driving.getResults().getPlan(0).getRoute(0).getPath();    //通过驾车实例，获得一系列点的数组
+                        var polyline = new BMap.Polyline(pts);
+                        map.addOverlay(polyline);
+                        for(var j=0;j<points.length;j++) {
+                            var m1 = new BMap.Marker(points[j]);
+                            m1.enableMassClear();
+                            map.addOverlay(m1);
+                            var lab1 = new BMap.Label(points[j].point_name, {position: points[j]});
+                            map.addOverlay(lab1);
+                        }
+                        
+                        setTimeout(function() {
+                            map.setViewport(points);          //调整到最佳视野
+                        }, 1000);
+
+                    });
+                    
+                    //driving.setMarkersSetCallback(function(markers){
+                    //    return false;
+                    //    console.log('set marker callback');
+                    //    console.log(markers);
+                    //    var m = markers[0].marker;
+                    //    var labe1 = new BMap.Label(markers[0].city, {position: markers[0].point});
+                        
+                    //    m.setLabel(labe1);
+                    //})
+                    
+                    
+                });
+            });
+            
+            function sortById(a, b){
+                var aid = a.point_id;
+                var bid = b.point_id; 
+                return ((aid < bid) ? -1 : ((aid > bid) ? 1 : 0));
+            }
+        </script>
+    </head>
+    <body>
+        <div class="btngrp">
+            <input type="button" class="add_point" id="add_point" name="add_point" value="添加途经点" />
+            <input type="button" name="generateRoute" id="generateRoute" value="生成路线" />
+        </div>
+        <div class="points">
+            <input type="text" name="start" id="start" value="" class="point" placeholder="起点"/>
+            <div class="onwaypoints">
+                <input type="text" name="onway0" id="onway0" value="" class="point onway" placeholder="途经点"/>
+            </div>
+            <input type="text" name="end" id="end" value="" class="point" placeholder="终点"/>
+        </div>
+        <div style="width:820px;height:500px;border:1px solid gray" id="container"></div>
+
+    </body>
+</html>
