@@ -1,79 +1,166 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+        <title>¼Ý³µÍ¾¾­µã</title>
+        <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
+        <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                var map = new BMap.Map("container");
+                map.centerAndZoom(new BMap.Point(116.404, 39.915), 13);
+                map.addControl(new BMap.NavigationControl());               // Ìí¼ÓÆ½ÒÆËõ·Å¿Ø¼þ
+                map.addControl(new BMap.ScaleControl());                    // Ìí¼Ó±ÈÀý³ß¿Ø¼þ
+                map.addControl(new BMap.OverviewMapControl());              //Ìí¼ÓËõÂÔµØÍ¼¿Ø¼þ
 
-  <head>
-    <meta charset='utf-8' />
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="Keyemap.io : keye map test" />
+                
+                var points = []; // used to store routes
+                var c = 0; // use to store how many time +/- clicked
+                $('.point').blur(function(){
+                    if($(this).val() == '')
+                        return false;
+                    console.log('blur to get lat/lng');
+                    var eid = $(this).attr('id');
+                    var pointid = 0;
+                    if(eid === 'start' || eid === 'end') {
+                        pointid = eid;
+                    } else 
+                        pointid = eid.substr(5);
+                    var pointname = $(this).val();
+                    var url = 'http://api.map.baidu.com/geocoder/v2/?address='+encodeURIComponent($(this).val())+'&output=json&ak=n0xLnhqRKKrS49n5qvuRRNfh&callback=showLocation';
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        dataType: "jsonp",
+                        timeout: 15000,
+                        error: function() {
+                            //alert('ÇëÇóÊý¾Ý´íÎó£¬ÇëÉÔºóÖØÊÔ!');
+                            return false;
+                        },
+                        success: function(res) {
+                            if(res.status == 0) {
+                                var location = res.result.location;
+                                var myP1 = new BMap.Point(location.lng, location.lat);
+                                myP1.point_id = pointid;
+                                myP1.point_name = pointname;
+                                console.log(myP1);
+                                var result = $.grep(points, function(e){ return e.point_id == pointid; });
+                                if (result.length == 0) {
+                                    // not found, put the point into object array
+                                    points.push(myP1);
+                                } else if (result.length == 1) {
+                                    // update the point
+                                    $.each(points, function() {
+                                        if (this.point_id == pointid) {
+                                            this.lat = location.lat;
+                                            this.lng = location.lng;
+                                            this.point_name = pointname;
+                                        }
+                                    });
+                                }
+                                
+                            } else
+                                alert('ÎÞ·¨Ê¶±ð¸ÃµØÖ·');
+                            return false;
+                        }
+                    });
+                });
+                
+                $('.btngrp').on('click', '#add_point',function(){
+                    console.log('add point');
+                    c++;
+                    var tmp = $('#onway0').clone(true, false);
+                    tmp.attr('id', 'onway'+c);
+                    tmp.attr('name', 'onway'+c);
+                    tmp.attr('value', '');
+                    tmp.attr('placeholder', 'Í¾¾­µã');
+                    tmp.insertAfter($('#onway'+(c-1)));
+                });
+                
+                $('.btngrp').on('click', '#generateRoute',function(){
+                    console.log('generate route');
+                    console.log(points);
+                    console.log(points.length);
+                    map.clearOverlays();                        //Çå³ýµØÍ¼ÉÏËùÓÐµÄ¸²¸ÇÎï
+                    var startpoint, endpoint;
+                    var onwaypoints = [];
+                    for(i=0;i<points.length;i++) {
+                        if(points[i].point_id === 'start')
+                            startpoint = points[i];
+                        else if(points[i].point_id === 'end')
+                            endpoint = points[i];
+                        else
+                            onwaypoints.push(points[i]);
+                        //driving.search(points[i], points[i+1]);
+                    }
+                    // sort onway points
+                    //console.log('start sorting');
+                    //console.log(onwaypoints);
+                    onwaypoints.sort(sortById);
+                    console.log(onwaypoints);
+                    // ºÏ²¢Æðµã£¬Í¾¾­µã£¬ÖÕµã
+                    points = $.merge($.merge([startpoint], onwaypoints), [endpoint]);
+                    console.log(points);
+                    console.log(points.length);
+                    // °´µãsearch
+                    var driving = new BMap.DrivingRoute(map,{renderOptions:{enableDragging:true}});    //´´½¨¼Ý³µÊµÀý
+                    for(i=0;i<points.length-1;i++) {
+                        driving.search(points[i].point_name, points[i+1].point_name);
+                        
+                    }
+                    // search Íê³ÉºóµÄ²Ù×÷
+                    driving.setSearchCompleteCallback(function() { 
+                        var pts = driving.getResults().getPlan(0).getRoute(0).getPath();    //Í¨¹ý¼Ý³µÊµÀý£¬»ñµÃÒ»ÏµÁÐµãµÄÊý×é
+                        var polyline = new BMap.Polyline(pts);
+                        map.addOverlay(polyline);
+                        for(var j=0;j<points.length;j++) {
+                            var m1 = new BMap.Marker(points[j]);
+                            m1.enableMassClear();
+                            map.addOverlay(m1);
+                            var lab1 = new BMap.Label(points[j].point_name, {position: points[j]});
+                            map.addOverlay(lab1);
+                        }
+                        
+                        setTimeout(function() {
+                            map.setViewport(points);          //µ÷Õûµ½×î¼ÑÊÓÒ°
+                        }, 1000);
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+                    });
+                    
+                    //driving.setMarkersSetCallback(function(markers){
+                    //    return false;
+                    //    console.log('set marker callback');
+                    //    console.log(markers);
+                    //    var m = markers[0].marker;
+                    //    var labe1 = new BMap.Label(markers[0].city, {position: markers[0].point});
+                        
+                    //    m.setLabel(labe1);
+                    //})
+                    
+                    
+                });
+            });
+            
+            function sortById(a, b){
+                var aid = a.point_id;
+                var bid = b.point_id; 
+                return ((aid < bid) ? -1 : ((aid > bid) ? 1 : 0));
+            }
+        </script>
+    </head>
+    <body>
+        <div class="btngrp">
+            <input type="button" class="add_point" id="add_point" name="add_point" value="Ìí¼ÓÍ¾¾­µã" />
+            <input type="button" name="generateRoute" id="generateRoute" value="Éú³ÉÂ·Ïß" />
+        </div>
+        <div class="points">
+            <input type="text" name="start" id="start" value="" class="point" placeholder="Æðµã"/>
+            <div class="onwaypoints">
+                <input type="text" name="onway0" id="onway0" value="" class="point onway" placeholder="Í¾¾­µã"/>
+            </div>
+            <input type="text" name="end" id="end" value="" class="point" placeholder="ÖÕµã"/>
+        </div>
+        <div style="width:820px;height:500px;border:1px solid gray" id="container"></div>
 
-    <title>Keyemap.io</title>
-  </head>
-
-  <body>
-
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <a id="forkme_banner" href="https://github.com/liaolliso2012/keyemap.io">View on GitHub</a>
-
-          <h1 id="project_title">Keyemap.io</h1>
-          <h2 id="project_tagline">keye map test</h2>
-
-            <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/liaolliso2012/keyemap.io/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/liaolliso2012/keyemap.io/tarball/master">Download this project as a tar.gz file</a>
-            </section>
-        </header>
-    </div>
-
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
-
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
-
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
-
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
-
-<h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
-
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
-
-<h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
-
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
-
-<h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
-
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
-
-<h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
-
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
-      </section>
-    </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">Keyemap.io maintained by <a href="https://github.com/liaolliso2012">liaolliso2012</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-      </footer>
-    </div>
-
-    
-
-  </body>
+    </body>
 </html>
