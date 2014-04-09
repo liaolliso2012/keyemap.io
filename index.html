@@ -2,16 +2,16 @@
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
-        <title>¼Ý³µÍ¾¾­µã</title>
+        <title>Baidu Map Testã</title>
         <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
         <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
         <script type="text/javascript">
             $(document).ready(function() {
                 var map = new BMap.Map("container");
                 map.centerAndZoom(new BMap.Point(116.404, 39.915), 13);
-                map.addControl(new BMap.NavigationControl());               // Ìí¼ÓÆ½ÒÆËõ·Å¿Ø¼þ
-                map.addControl(new BMap.ScaleControl());                    // Ìí¼Ó±ÈÀý³ß¿Ø¼þ
-                map.addControl(new BMap.OverviewMapControl());              //Ìí¼ÓËõÂÔµØÍ¼¿Ø¼þ
+                map.addControl(new BMap.NavigationControl());               
+                map.addControl(new BMap.ScaleControl());                    
+                map.addControl(new BMap.OverviewMapControl());      
 
                 
                 var points = []; // used to store routes
@@ -34,7 +34,7 @@
                         dataType: "jsonp",
                         timeout: 15000,
                         error: function() {
-                            //alert('ÇëÇóÊý¾Ý´íÎó£¬ÇëÉÔºóÖØÊÔ!');
+                            
                             return false;
                         },
                         success: function(res) {
@@ -150,15 +150,15 @@
     </head>
     <body>
         <div class="btngrp">
-            <input type="button" class="add_point" id="add_point" name="add_point" value="Ìí¼ÓÍ¾¾­µã" />
-            <input type="button" name="generateRoute" id="generateRoute" value="Éú³ÉÂ·Ïß" />
+            <input type="button" class="add_point" id="add_point" name="add_point" value="添加途经点" />
+            <input type="button" name="generateRoute" id="generateRoute" value="生成路线" />
         </div>
         <div class="points">
-            <input type="text" name="start" id="start" value="" class="point" placeholder="Æðµã"/>
+            <input type="text" name="start" id="start" value="" class="point" placeholder="起点"/>
             <div class="onwaypoints">
-                <input type="text" name="onway0" id="onway0" value="" class="point onway" placeholder="Í¾¾­µã"/>
+                <input type="text" name="onway0" id="onway0" value="" class="point onway" placeholder="途经点"/>
             </div>
-            <input type="text" name="end" id="end" value="" class="point" placeholder="ÖÕµã"/>
+            <input type="text" name="end" id="end" value="" class="point" placeholder="终点"/>
         </div>
         <div style="width:820px;height:500px;border:1px solid gray" id="container"></div>
 
