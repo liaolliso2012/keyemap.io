@@ -1,21 +1,44 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html>
     <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
-        <title>Baidu Map Test</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>拖拽导航</title>
         <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
-        <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
-        <script type="text/javascript">
+        <script language="javascript" src="http://webapi.amap.com/maps?v=1.2&key=d8d5649a8338723fe59b001624404b3f"></script>
+        <link rel="stylesheet" type="text/css" href="http://api.amap.com/Public/css/demo.Default.css" />
+        <script language="javascript">
+            var mapObj, route, marker, geocoder;
+            var points = []; // used to store routes
+            var c = 0; // use to store how many time +/- clicked
+            
             $(document).ready(function() {
-                var map = new BMap.Map("container");
-                map.centerAndZoom(new BMap.Point(116.404, 39.915), 13);
-                map.addControl(new BMap.NavigationControl());               
-                map.addControl(new BMap.ScaleControl());                    
-                map.addControl(new BMap.OverviewMapControl());      
 
+                var position = new AMap.LngLat(116.404, 39.915);//创建中心点坐标  
+                mapObj = new AMap.Map("iCenter", {center: position});//创建地图实例
+
+                $('.btngrp').on('click', '#add_point', function() {
+                    console.log('add point');
+                    c++;
+                    var tmp = $('#onway0').clone(true, false);
+                    tmp.attr('id', 'onway' + c);
+                    tmp.attr('name', 'onway' + c);
+                    tmp.attr('value', '');
+                    tmp.attr('placeholder', '途经点');
+                    tmp.insertAfter($('#onway' + (c - 1)));
+                });
+
+                $('.btngrp').on('click', '#generateRoute', function() {
+                    console.log(points);
+                    var path = [];
+                    for(i=0;i<points.length;i++) {
+                        path.push(new AMap.LngLat(points[i].lng, points[i].lat));
+                    }
+                    mapObj.plugin("AMap.DragRoute", function() {
+                        route = new AMap.DragRoute(mapObj, path, AMap.DrivingPolicy.LEAST_FEE); //构造拖拽导航类
+                        route.search(); //查询导航路径并开启拖拽导航
+                    });
+                });
                 
-                var points = []; // used to store routes
-                var c = 0; // use to store how many time +/- clicked
                 $('.point').blur(function(){
                     if($(this).val() == '')
                         return false;
@@ -26,126 +49,62 @@
                         pointid = eid;
                     } else 
                         pointid = eid.substr(5);
+                    $('#curpos_id').val(pointid);
                     var pointname = $(this).val();
-                    var url = 'http://api.map.baidu.com/geocoder/v2/?address='+encodeURIComponent($(this).val())+'&output=json&ak=n0xLnhqRKKrS49n5qvuRRNfh&callback=showLocation';
-                    $.ajax({
-                        url: url,
-                        type: 'POST',
-                        dataType: "jsonp",
-                        timeout: 15000,
-                        error: function() {
-                            
-                            return false;
-                        },
-                        success: function(res) {
-                            if(res.status == 0) {
-                                var location = res.result.location;
-                                var myP1 = new BMap.Point(location.lng, location.lat);
-                                myP1.point_id = pointid;
-                                myP1.point_name = pointname;
-                                console.log(myP1);
-                                var result = $.grep(points, function(e){ return e.point_id == pointid; });
-                                if (result.length == 0) {
-                                    // not found, put the point into object array
-                                    points.push(myP1);
-                                } else if (result.length == 1) {
-                                    // update the point
-                                    $.each(points, function() {
-                                        if (this.point_id == pointid) {
-                                            this.lat = location.lat;
-                                            this.lng = location.lng;
-                                            this.point_name = pointname;
-                                        }
-                                    });
-                                }
-                                
-                            } else {
-                                document.write('Wrong address');
-                            }        
-                            return false;
-                        }
-                    });
+                    getCord(pointname);
+                    
                 });
-                
-                $('.btngrp').on('click', '#add_point',function(){
-                    console.log('add point');
-                    c++;
-                    var tmp = $('#onway0').clone(true, false);
-                    tmp.attr('id', 'onway'+c);
-                    tmp.attr('name', 'onway'+c);
-                    tmp.attr('value', '');
-                    tmp.attr('placeholder', 'Í¾¾­µã');
-                    tmp.insertAfter($('#onway'+(c-1)));
-                });
-                
-                $('.btngrp').on('click', '#generateRoute',function(){
-                    console.log('generate route');
-                    console.log(points);
-                    console.log(points.length);
-                    map.clearOverlays();                        //Çå³ýµØÍ¼ÉÏËùÓÐµÄ¸²¸ÇÎï
-                    var startpoint, endpoint;
-                    var onwaypoints = [];
-                    for(i=0;i<points.length;i++) {
-                        if(points[i].point_id === 'start')
-                            startpoint = points[i];
-                        else if(points[i].point_id === 'end')
-                            endpoint = points[i];
-                        else
-                            onwaypoints.push(points[i]);
-                        //driving.search(points[i], points[i+1]);
-                    }
-                    // sort onway points
-                    //console.log('start sorting');
-                    //console.log(onwaypoints);
-                    onwaypoints.sort(sortById);
-                    console.log(onwaypoints);
-                    // ºÏ²¢Æðµã£¬Í¾¾­µã£¬ÖÕµã
-                    points = $.merge($.merge([startpoint], onwaypoints), [endpoint]);
-                    console.log(points);
-                    console.log(points.length);
-                    // °´µãsearch
-                    var driving = new BMap.DrivingRoute(map,{renderOptions:{enableDragging:true}});    //´´½¨¼Ý³µÊµÀý
-                    for(i=0;i<points.length-1;i++) {
-                        driving.search(points[i].point_name, points[i+1].point_name);
-                        
-                    }
-                    // search Íê³ÉºóµÄ²Ù×÷
-                    driving.setSearchCompleteCallback(function() { 
-                        var pts = driving.getResults().getPlan(0).getRoute(0).getPath();    //Í¨¹ý¼Ý³µÊµÀý£¬»ñµÃÒ»ÏµÁÐµãµÄÊý×é
-                        var polyline = new BMap.Polyline(pts);
-                        map.addOverlay(polyline);
-                        for(var j=0;j<points.length;j++) {
-                            var m1 = new BMap.Marker(points[j]);
-                            m1.enableMassClear();
-                            map.addOverlay(m1);
-                            var lab1 = new BMap.Label(points[j].point_name, {position: points[j]});
-                            map.addOverlay(lab1);
-                        }
-                        
-                        setTimeout(function() {
-                            map.setViewport(points);          //µ÷Õûµ½×î¼ÑÊÓÒ°
-                        }, 1000);
 
-                    });
-                    
-                    //driving.setMarkersSetCallback(function(markers){
-                    //    return false;
-                    //    console.log('set marker callback');
-                    //    console.log(markers);
-                    //    var m = markers[0].marker;
-                    //    var labe1 = new BMap.Label(markers[0].city, {position: markers[0].point});
-                        
-                    //    m.setLabel(labe1);
-                    //})
-                    
-                    
-                });
+                
+                //console.log(points);
             });
-            
-            function sortById(a, b){
-                var aid = a.point_id;
-                var bid = b.point_id; 
-                return ((aid < bid) ? -1 : ((aid > bid) ? 1 : 0));
+
+            function getCord(place) {
+                //加载地理编码插件
+                mapObj.plugin(["AMap.Geocoder"], function() {
+                    geocoder = new AMap.Geocoder({
+                        radius: 1000, //以已知坐标为中心点，radius为半径，返回范围内兴趣点和道路信息
+                    });
+                    //返回地理编码结果
+                    AMap.event.addListener(geocoder, "complete", geocoder_callback);
+                    geocoder.getLocation(place);
+                });
+            }
+
+            function geocoder_callback(data) {
+                var resultStr = "";
+                //地理编码结果数组  
+                var geocode = new Array();
+                geocode = data.geocodes;
+//                console.log(geocode);
+//                console.log(geocode.length);
+                if(geocode.length > 0) {
+//                    console.log('Push ' + geocode[0].formattedAddress + ' into points');
+//                    console.log(geocode[0]);
+                    var pointid = $('#curpos_id').val();
+
+                    geocode[0].location.id = pointid;
+                    geocode[0].location.address = geocode[0].formattedAddress;
+                    
+                    var result = $.grep(points, function(e){ return e.id == pointid; });
+                    if (result.length == 0) {
+                        points.push(geocode[0].location);
+                    } else if (result.length == 1) {
+                        // update the point
+                        $.each(points, function() {
+                            if (this.id == pointid) {
+                                this.lat = geocode[0].location.lat;
+                                this.lng = geocode[0].location.lng;
+                                this.j = geocode[0].location.lat;
+                                this.l = geocode[0].location.lng;
+                                this.address = geocode[0].formattedAddress;
+                            }
+                        });
+                    }
+                }
+                mapObj.setFitView();
+                //console.log(points);
+                //document.getElementById("result").innerHTML = resultStr;
             }
         </script>
     </head>
@@ -161,7 +120,9 @@
             </div>
             <input type="text" name="end" id="end" value="" class="point" placeholder="终点"/>
         </div>
-        <div style="width:820px;height:500px;border:1px solid gray" id="container"></div>
-
+        <div style="width:820px;height:500px;border:1px solid gray" id="iCenter"></div>
+        <div id="result"></div>
+        <input type="hidden" id="curpos_id" value="" />
+        <input type="hidden" id="curpos_name" value="" />
     </body>
 </html>
