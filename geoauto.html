@@ -1,0 +1,301 @@
+<html>    
+    <head>
+        <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script src="http://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&key=AIzaSyCgrYHfhsghwjRf_AjL_GBHUMVEc6z-auk&language=zh-CN&libraries=places,geometry"></script>
+        <link rel="stylesheet" type="text/css" href="css/jquery-autocomplete.css" />
+        <link rel="stylesheet" type="text/css" href="css/gmap3-menu.css" />
+
+        <script type="text/javascript" src="js/jquery-autocomplete.js"></script>
+        <script type="text/javascript" src="js/gmap3.min.js"></script>
+        <script type="text/javascript" src="js/gmap3-menu.js"></script>
+        <style>
+            #container{
+                position:relative;
+                height:700px;
+            }
+            #directions{
+                position:absolute;
+                width: 23%;
+                right:1%;
+                height: 690px;
+                overflow:auto;
+            }
+            #googleMap{
+                border: 1px dashed #C0C0C0;
+                width: 75%;
+                height: 700px;
+            }
+        </style>
+
+        <script type="text/javascript">
+            $(function() {
+
+                var $map = $("#googleMap"),
+                        menu = new Gmap3Menu($map),
+                        current, // current click event (used to save as start / end position)
+                        twoPoints = [], // use to store current and previous point for drawing route
+                        m1, // marker "from"
+                        m2;       // marker "to"
+
+                $("#address").autocomplete({
+                    source: function() {
+                        $("#googleMap").gmap3({
+                            getaddress: {
+                                address: $(this).val(),
+                                callback: function(results) {
+                                    //console.log(results);
+                                    if (!results)
+                                        return;
+                                    $("#address").autocomplete("display", results, false);
+                                }
+                            }
+                        });
+                    },
+                    cb: {
+                        cast: function(item) {
+                            return item.formatted_address;
+                        },
+                        select: function(item) {
+                            console.log(item.geometry.location.lat());
+                            console.log(item.geometry.location.lng());
+                            var tmpPoint = {};
+                            tmpPoint.lat = item.geometry.location.lat();
+                            tmpPoint.lng = item.geometry.location.lng();
+                            tmpPoint.title = item.formatted_address;
+                            tmpPoint.html = item.formatted_address;
+                            updateTwoPoints(tmpPoint);
+                            drawRoute();
+                            $("#googleMap").gmap3({
+                                //clear: "marker",
+                                marker: {
+                                    latLng: item.geometry.location,
+                                    options: {
+                                        draggable: true
+                                    },
+                                    events: {
+                                        mouseover: function(marker, event, context) {
+                                            console.log('im over');
+                                        },
+                                        click: function(marker, event, context) {
+                                            console.log('im clicked');
+                                        },
+                                        dragend: function(marker) {
+                                            console.log('im dragged');
+                                            console.log(marker.position.lat());
+                                            console.log(marker.position.lng());
+                                        }
+                                    }
+                                },
+                                map: {
+                                    options: {
+                                        center: item.geometry.location,
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }).focus();
+                // update marker
+                function updateMarker(marker, isM1) {
+                    if (isM1) {
+                        m1 = marker;
+                    } else {
+                        m2 = marker;
+                    }
+                    updateDirections();
+                }
+
+                function drawRoute() {
+                    console.log('draw route');
+                    if (twoPoints.length > 1) {
+                        var start = new google.maps.LatLng(twoPoints[0].lat, twoPoints[0].lng);
+                        var end = new google.maps.LatLng(twoPoints[1].lat, twoPoints[1].lng);
+                        $("#googleMap").gmap3({
+                            getroute: {
+                                options: {
+                                    origin: start,
+                                    destination: end,
+                                    travelMode: google.maps.DirectionsTravelMode.DRIVING
+                                },
+                                callback: function(results) {
+                                    if (!results)
+                                        return;
+                                    $(this).gmap3({
+                                        map: {
+                                            options: {
+                                                center: [39.915, 116.404],
+                                                zoom: 7
+                                            }
+                                        },
+                                        directionsrenderer: {
+                                            options: {
+                                                draggable: true,
+                                                directions: results
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+
+                function updateTwoPoints(item) {
+                    if (twoPoints.length < 2) {
+                        twoPoints.push(item);
+                    } else {
+                        twoPoints = [twoPoints[1]];
+                        twoPoints.push(item);
+                    }
+                    console.log(twoPoints);
+                }
+
+                // add marker and manage which one it is (A, B)
+                function addMarker(isM1) {
+                    // clear previous marker if set
+//                    var clear = {name: "marker"};
+//                    if (isM1 && m1) {
+//                        clear.tag = "from";
+//                        $map.gmap3({clear: clear});
+//                    } else if (!isM1 && m2) {
+//                        clear.tag = "to";
+//                        $map.gmap3({clear: clear});
+//                    }
+                    // add marker and store it
+                    $map.gmap3({
+                        marker: {
+                            latLng: current.latLng,
+                            options: {
+                                draggable: true,
+                                icon: new google.maps.MarkerImage("http://maps.gstatic.com/mapfiles/icon_green" + (isM1 ? "A" : "B") + ".png")
+                            },
+                            tag: (isM1 ? "from" : "to"),
+                            events: {
+                                dragend: function(marker) {
+                                    updateMarker(marker, isM1);
+                                }
+                            },
+                            callback: function(marker) {
+                                updateMarker(marker, isM1);
+                            }
+                        }
+                    });
+                }
+
+                // function called to update direction is m1 and m2 are set
+                function updateDirections() {
+                    if (!(m1 && m2)) {
+                        return;
+                    }
+                    $map.gmap3({
+                        getroute: {
+                            options: {
+                                origin: m1.getPosition(),
+                                destination: m2.getPosition(),
+                                travelMode: google.maps.DirectionsTravelMode.DRIVING,
+                                draggable: true,
+                            },
+                            callback: function(results) {
+                                if (!results)
+                                    return;
+                                $map.gmap3({get: "directionsrenderer"}).setDirections(results);
+                            }
+                        }
+                    });
+                }
+
+                // MENU : ITEM 1
+                menu.add("Direction to here", "itemB",
+                        function() {
+                            menu.close();
+                            addMarker(false);
+                        });
+
+                // MENU : ITEM 2
+                menu.add("Direction from here", "itemA separator",
+                        function() {
+                            menu.close();
+                            addMarker(true);
+                        })
+
+                // MENU : ITEM 3
+                menu.add("Zoom in", "zoomIn",
+                        function() {
+                            var map = $map.gmap3("get");
+                            map.setZoom(map.getZoom() + 1);
+                            menu.close();
+                        });
+
+                // MENU : ITEM 4
+                menu.add("Zoom out", "zoomOut",
+                        function() {
+                            var map = $map.gmap3("get");
+                            map.setZoom(map.getZoom() - 1);
+                            menu.close();
+                        });
+
+                // MENU : ITEM 5
+                menu.add("Center here", "centerHere",
+                        function() {
+                            $map.gmap3("get").setCenter(current.latLng);
+                            menu.close();
+                        });
+
+                // INITIALIZE GOOGLE MAP
+                $map.gmap3({
+                    map: {
+                        options: {
+                            center: [39.915, 116.404],
+                            zoom: 7,
+                            mapTypeControl: true,
+                            mapTypeControlOptions: {
+                                style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+                            },
+                            navigationControl: true,
+                            scrollwheel: true,
+                            streetViewControl: true
+                        },
+                        events: {
+                            rightclick: function(map, event) {
+                                current = event;
+                                menu.open(current);
+                            },
+                            click: function() {
+                                menu.close();
+                            },
+                            dragstart: function() {
+                                menu.close();
+                            },
+                            zoom_changed: function() {
+                                menu.close();
+                            }
+                        }
+                    },
+                    // add direction renderer to configure options (else, automatically created with default options)
+                    directionsrenderer: {
+                        divId: "directions",
+                        options: {
+                            preserveViewport: true,
+                            draggable: true,
+                            markerOptions: {
+                                visible: true
+                            }
+                        }
+                    }
+                });
+
+
+            });
+        </script>  
+    </head>
+
+    <body>
+        <div id="container">
+            <input type="text" id="address" name="address" />
+            <div id="directions">
+
+            </div>
+            <div id="googleMap"></div>
+        </div>
+    </body>
+</html>
