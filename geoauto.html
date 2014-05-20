@@ -70,7 +70,8 @@
                                 marker: {
                                     latLng: item.geometry.location,
                                     options: {
-                                        draggable: true
+                                        draggable: true,
+                                        icon: 'http://maps.google.com/mapfiles/marker_green.png'
                                     },
                                     events: {
                                         mouseover: function(marker, event, context) {
@@ -89,6 +90,7 @@
                                 map: {
                                     options: {
                                         center: item.geometry.location,
+                                        zoom: 7
                                     }
                                 }
                             });
@@ -130,7 +132,11 @@
                                         directionsrenderer: {
                                             options: {
                                                 draggable: true,
-                                                directions: results
+                                                directions: results,
+                                                markerOptions: {
+                                                    draggable: true,
+                                                    icon: 'http://maps.google.com/mapfiles/marker_green.png'
+                                                }
                                             }
                                         }
                                     });
