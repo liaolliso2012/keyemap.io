@@ -1,5 +1,6 @@
 <html>    
     <head>
+        <meta charset="UTF-8">
         <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
         <script src="http://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&key=AIzaSyCgrYHfhsghwjRf_AjL_GBHUMVEc6z-auk&language=zh-CN&libraries=places,geometry"></script>
         <link rel="stylesheet" type="text/css" href="css/jquery-autocomplete.css" />
@@ -65,6 +66,7 @@
                             tmpPoint.html = item.formatted_address;
                             updateTwoPoints(tmpPoint);
                             drawRoute();
+                            // add marker
                             $("#googleMap").gmap3({
                                 //clear: "marker",
                                 marker: {
@@ -72,19 +74,6 @@
                                     options: {
                                         draggable: true,
                                         icon: 'http://maps.google.com/mapfiles/marker_green.png'
-                                    },
-                                    events: {
-                                        mouseover: function(marker, event, context) {
-                                            console.log('im over');
-                                        },
-                                        click: function(marker, event, context) {
-                                            console.log('im clicked');
-                                        },
-                                        dragend: function(marker) {
-                                            console.log('im dragged');
-                                            console.log(marker.position.lat());
-                                            console.log(marker.position.lng());
-                                        }
                                     }
                                 },
                                 map: {
@@ -94,18 +83,12 @@
                                     }
                                 }
                             });
+                            $("#address").val('下一站').select();
+                            
                         }
                     }
                 }).focus();
-                // update marker
-                function updateMarker(marker, isM1) {
-                    if (isM1) {
-                        m1 = marker;
-                    } else {
-                        m2 = marker;
-                    }
-                    updateDirections();
-                }
+
 
                 function drawRoute() {
                     console.log('draw route');
@@ -132,10 +115,70 @@
                                         directionsrenderer: {
                                             options: {
                                                 draggable: true,
+                                                
                                                 directions: results,
                                                 markerOptions: {
                                                     draggable: true,
                                                     icon: 'http://maps.google.com/mapfiles/marker_green.png'
+                                                }
+                                            },
+                                            events:{
+                                                directions_changed: function(directionsrenderer, event, context){
+                                                    console.log('route chaned');
+                                                    // HERE send ajax request to backend to save the waypoints
+                                                    var points = directionsrenderer.directions.routes[0].legs[0];
+                                                    console.log(points);
+                                                    for(var i=0; i<points.via_waypoints.length;i++) {
+                                                        var wp = points.via_waypoints[i];
+                                                        console.log(wp.lat());
+                                                        console.log(wp.lng());
+                                                        var tmplocation = new google.maps.LatLng(wp.lat(), wp.lng());
+                                                        // add actions to this waypoint
+                                                        $("#googleMap").gmap3({
+                                                            //clear: "marker",
+                                                            marker: {
+                                                                latLng: tmplocation,
+                                                                options: {
+                                                                    draggable: true,
+                                                                    icon: 'http://maps.google.com/mapfiles/marker_green.png'
+                                                                },
+                                                                events: {
+                                                                    mouseover: function(marker, event, context) {
+                                                                        console.log('im over');
+                                                                    },
+                                                                    click: function(marker, event, context) {
+                                                                        console.log('im clicked');
+                                                                        $("#googleMap").gmap3({
+                                                                            infowindow:{
+                                                                               //address:tmplocation,
+                                                                               options:{
+                                                                                   position:tmplocation,
+                                                                                   content: "You can do anything here: <input type='text' name='note' id='note' /><input type='button' id='addnote' name='addnote' value='添加备注'/>"
+                                                                               },
+                                                                               events:{
+                                                                                   closeclick: function(infowindow){
+                                                                                       alert("closing : " + infowindow.getContent());
+                                                                                   },
+                                                                                   domready: function(infowindow){
+                                                                                       $('#addnote').click(function(){
+                                                                                            alert('add note success');
+                                                                                            infowindow.close();
+                                                                                       });
+                                                                                   }
+                                                                               }
+                                                                            }
+                                                                        });
+                                                                    },
+                                                                    dragend: function(marker) {
+                                                                        console.log('im dragged');
+                                                                        console.log(marker.position.lat());
+                                                                        console.log(marker.position.lng());
+                                                                    }
+                                                                }
+                                                            }
+                                                        });
+                                                    }
+                                                    
                                                 }
                                             }
                                         }
@@ -145,6 +188,7 @@
                         });
                     }
                 }
+                
 
                 function updateTwoPoints(item) {
                     if (twoPoints.length < 2) {
@@ -155,60 +199,7 @@
                     }
                     console.log(twoPoints);
                 }
-
-                // add marker and manage which one it is (A, B)
-                function addMarker(isM1) {
-                    // clear previous marker if set
-//                    var clear = {name: "marker"};
-//                    if (isM1 && m1) {
-//                        clear.tag = "from";
-//                        $map.gmap3({clear: clear});
-//                    } else if (!isM1 && m2) {
-//                        clear.tag = "to";
-//                        $map.gmap3({clear: clear});
-//                    }
-                    // add marker and store it
-                    $map.gmap3({
-                        marker: {
-                            latLng: current.latLng,
-                            options: {
-                                draggable: true,
-                                icon: new google.maps.MarkerImage("http://maps.gstatic.com/mapfiles/icon_green" + (isM1 ? "A" : "B") + ".png")
-                            },
-                            tag: (isM1 ? "from" : "to"),
-                            events: {
-                                dragend: function(marker) {
-                                    updateMarker(marker, isM1);
-                                }
-                            },
-                            callback: function(marker) {
-                                updateMarker(marker, isM1);
-                            }
-                        }
-                    });
-                }
-
-                // function called to update direction is m1 and m2 are set
-                function updateDirections() {
-                    if (!(m1 && m2)) {
-                        return;
-                    }
-                    $map.gmap3({
-                        getroute: {
-                            options: {
-                                origin: m1.getPosition(),
-                                destination: m2.getPosition(),
-                                travelMode: google.maps.DirectionsTravelMode.DRIVING,
-                                draggable: true,
-                            },
-                            callback: function(results) {
-                                if (!results)
-                                    return;
-                                $map.gmap3({get: "directionsrenderer"}).setDirections(results);
-                            }
-                        }
-                    });
-                }
+                
 
                 // MENU : ITEM 1
                 menu.add("Direction to here", "itemB",
@@ -276,20 +267,9 @@
                                 menu.close();
                             }
                         }
-                    },
-                    // add direction renderer to configure options (else, automatically created with default options)
-                    directionsrenderer: {
-                        divId: "directions",
-                        options: {
-                            preserveViewport: true,
-                            draggable: true,
-                            markerOptions: {
-                                visible: true
-                            }
-                        }
                     }
                 });
-
+                
 
             });
         </script>  
@@ -297,7 +277,7 @@
 
     <body>
         <div id="container">
-            <input type="text" id="address" name="address" />
+            <input type="text" id="address" name="address" placeholder="起点"/>
             <div id="directions">
 
             </div>
