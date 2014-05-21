@@ -1,128 +1,287 @@
-<!DOCTYPE HTML>
-<html>
+<html>    
     <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title>拖拽导航</title>
-        <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
-        <script language="javascript" src="http://webapi.amap.com/maps?v=1.2&key=d8d5649a8338723fe59b001624404b3f"></script>
-        <link rel="stylesheet" type="text/css" href="http://api.amap.com/Public/css/demo.Default.css" />
-        <script language="javascript">
-            var mapObj, route, marker, geocoder;
-            var points = []; // used to store routes
-            var c = 0; // use to store how many time +/- clicked
-            
-            $(document).ready(function() {
+        <meta charset="UTF-8">
+        <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script src="http://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&key=AIzaSyCgrYHfhsghwjRf_AjL_GBHUMVEc6z-auk&language=zh-CN&libraries=places,geometry"></script>
+        <link rel="stylesheet" type="text/css" href="css/jquery-autocomplete.css" />
+        <link rel="stylesheet" type="text/css" href="css/gmap3-menu.css" />
 
-                var position = new AMap.LngLat(116.404, 39.915);//创建中心点坐标  
-                mapObj = new AMap.Map("iCenter", {center: position});//创建地图实例
-
-                $('.btngrp').on('click', '#add_point', function() {
-                    console.log('add point');
-                    c++;
-                    var tmp = $('#onway0').clone(true, false);
-                    tmp.attr('id', 'onway' + c);
-                    tmp.attr('name', 'onway' + c);
-                    tmp.attr('value', '');
-                    tmp.attr('placeholder', '途经点');
-                    tmp.insertAfter($('#onway' + (c - 1)));
-                });
-
-                $('.btngrp').on('click', '#generateRoute', function() {
-                    console.log(points);
-                    var path = [];
-                    for(i=0;i<points.length;i++) {
-                        path.push(new AMap.LngLat(points[i].lng, points[i].lat));
-                    }
-                    mapObj.plugin("AMap.DragRoute", function() {
-                        route = new AMap.DragRoute(mapObj, path, AMap.DrivingPolicy.LEAST_FEE); //构造拖拽导航类
-                        route.search(); //查询导航路径并开启拖拽导航
-                    });
-                });
-                
-                $('.point').blur(function(){
-                    if($(this).val() == '')
-                        return false;
-                    console.log('blur to get lat/lng');
-                    var eid = $(this).attr('id');
-                    var pointid = 0;
-                    if(eid === 'start' || eid === 'end') {
-                        pointid = eid;
-                    } else 
-                        pointid = eid.substr(5);
-                    $('#curpos_id').val(pointid);
-                    var pointname = $(this).val();
-                    getCord(pointname);
-                    
-                });
-
-                
-                //console.log(points);
-            });
-
-            function getCord(place) {
-                //加载地理编码插件
-                mapObj.plugin(["AMap.Geocoder"], function() {
-                    geocoder = new AMap.Geocoder({
-                        radius: 1000, //以已知坐标为中心点，radius为半径，返回范围内兴趣点和道路信息
-                    });
-                    //返回地理编码结果
-                    AMap.event.addListener(geocoder, "complete", geocoder_callback);
-                    geocoder.getLocation(place);
-                });
+        <script type="text/javascript" src="js/jquery-autocomplete.js"></script>
+        <script type="text/javascript" src="js/gmap3.min.js"></script>
+        <script type="text/javascript" src="js/gmap3-menu.js"></script>
+        <style>
+            #container{
+                position:relative;
+                height:700px;
             }
+            #directions{
+                position:absolute;
+                width: 23%;
+                right:1%;
+                height: 690px;
+                overflow:auto;
+            }
+            #googleMap{
+                border: 1px dashed #C0C0C0;
+                width: 75%;
+                height: 700px;
+            }
+        </style>
 
-            function geocoder_callback(data) {
-                var resultStr = "";
-                //地理编码结果数组  
-                var geocode = new Array();
-                geocode = data.geocodes;
-//                console.log(geocode);
-//                console.log(geocode.length);
-                if(geocode.length > 0) {
-//                    console.log('Push ' + geocode[0].formattedAddress + ' into points');
-//                    console.log(geocode[0]);
-                    var pointid = $('#curpos_id').val();
+        <script type="text/javascript">
+            $(function() {
 
-                    geocode[0].location.id = pointid;
-                    geocode[0].location.address = geocode[0].formattedAddress;
-                    
-                    var result = $.grep(points, function(e){ return e.id == pointid; });
-                    if (result.length == 0) {
-                        points.push(geocode[0].location);
-                    } else if (result.length == 1) {
-                        // update the point
-                        $.each(points, function() {
-                            if (this.id == pointid) {
-                                this.lat = geocode[0].location.lat;
-                                this.lng = geocode[0].location.lng;
-                                this.j = geocode[0].location.lat;
-                                this.l = geocode[0].location.lng;
-                                this.address = geocode[0].formattedAddress;
+                var $map = $("#googleMap"),
+                        menu = new Gmap3Menu($map),
+                        current, // current click event (used to save as start / end position)
+                        twoPoints = [], // use to store current and previous point for drawing route
+                        m1, // marker "from"
+                        m2;       // marker "to"
+
+                $("#address").autocomplete({
+                    source: function() {
+                        $("#googleMap").gmap3({
+                            getaddress: {
+                                address: $(this).val(),
+                                callback: function(results) {
+                                    //console.log(results);
+                                    if (!results)
+                                        return;
+                                    $("#address").autocomplete("display", results, false);
+                                }
+                            }
+                        });
+                    },
+                    cb: {
+                        cast: function(item) {
+                            return item.formatted_address;
+                        },
+                        select: function(item) {
+                            console.log(item.geometry.location.lat());
+                            console.log(item.geometry.location.lng());
+                            var tmpPoint = {};
+                            tmpPoint.lat = item.geometry.location.lat();
+                            tmpPoint.lng = item.geometry.location.lng();
+                            tmpPoint.title = item.formatted_address;
+                            tmpPoint.html = item.formatted_address;
+                            updateTwoPoints(tmpPoint);
+                            drawRoute();
+                            // add marker
+                            $("#googleMap").gmap3({
+                                //clear: "marker",
+                                marker: {
+                                    latLng: item.geometry.location,
+                                    options: {
+                                        draggable: true,
+                                        icon: 'http://maps.google.com/mapfiles/marker_green.png'
+                                    }
+                                },
+                                map: {
+                                    options: {
+                                        center: item.geometry.location,
+                                        zoom: 7
+                                    }
+                                }
+                            });
+                            $("#address").val('下一站').select();
+                            
+                        }
+                    }
+                }).focus();
+
+
+                function drawRoute() {
+                    console.log('draw route');
+                    if (twoPoints.length > 1) {
+                        var start = new google.maps.LatLng(twoPoints[0].lat, twoPoints[0].lng);
+                        var end = new google.maps.LatLng(twoPoints[1].lat, twoPoints[1].lng);
+                        $("#googleMap").gmap3({
+                            getroute: {
+                                options: {
+                                    origin: start,
+                                    destination: end,
+                                    travelMode: google.maps.DirectionsTravelMode.DRIVING
+                                },
+                                callback: function(results) {
+                                    if (!results)
+                                        return;
+                                    $(this).gmap3({
+                                        map: {
+                                            options: {
+                                                center: [39.915, 116.404],
+                                                zoom: 7
+                                            }
+                                        },
+                                        directionsrenderer: {
+                                            options: {
+                                                draggable: true,
+                                                
+                                                directions: results,
+                                                markerOptions: {
+                                                    draggable: true,
+                                                    icon: 'http://maps.google.com/mapfiles/marker_green.png'
+                                                }
+                                            },
+                                            events:{
+                                                directions_changed: function(directionsrenderer, event, context){
+                                                    console.log('route chaned');
+                                                    // HERE send ajax request to backend to save the waypoints
+                                                    var points = directionsrenderer.directions.routes[0].legs[0];
+                                                    console.log(points);
+                                                    for(var i=0; i<points.via_waypoints.length;i++) {
+                                                        var wp = points.via_waypoints[i];
+                                                        console.log(wp.lat());
+                                                        console.log(wp.lng());
+                                                        var tmplocation = new google.maps.LatLng(wp.lat(), wp.lng());
+                                                        // add actions to this waypoint
+                                                        $("#googleMap").gmap3({
+                                                            //clear: "marker",
+                                                            marker: {
+                                                                latLng: tmplocation,
+                                                                options: {
+                                                                    draggable: true,
+                                                                    icon: 'http://maps.google.com/mapfiles/marker_green.png'
+                                                                },
+                                                                events: {
+                                                                    mouseover: function(marker, event, context) {
+                                                                        console.log('im over');
+                                                                    },
+                                                                    click: function(marker, event, context) {
+                                                                        console.log('im clicked');
+                                                                        $("#googleMap").gmap3({
+                                                                            infowindow:{
+                                                                               //address:tmplocation,
+                                                                               options:{
+                                                                                   position:tmplocation,
+                                                                                   content: "You can do anything here: <input type='text' name='note' id='note' /><input type='button' id='addnote' name='addnote' value='添加备注'/>"
+                                                                               },
+                                                                               events:{
+                                                                                   closeclick: function(infowindow){
+                                                                                       alert("closing : " + infowindow.getContent());
+                                                                                   },
+                                                                                   domready: function(infowindow){
+                                                                                       $('#addnote').click(function(){
+                                                                                            alert('add note success');
+                                                                                            infowindow.close();
+                                                                                       });
+                                                                                   }
+                                                                               }
+                                                                            }
+                                                                        });
+                                                                    },
+                                                                    dragend: function(marker) {
+                                                                        console.log('im dragged');
+                                                                        console.log(marker.position.lat());
+                                                                        console.log(marker.position.lng());
+                                                                    }
+                                                                }
+                                                            }
+                                                        });
+                                                    }
+                                                    
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
                             }
                         });
                     }
                 }
-                mapObj.setFitView();
-                //console.log(points);
-                //document.getElementById("result").innerHTML = resultStr;
-            }
-        </script>
+                
+
+                function updateTwoPoints(item) {
+                    if (twoPoints.length < 2) {
+                        twoPoints.push(item);
+                    } else {
+                        twoPoints = [twoPoints[1]];
+                        twoPoints.push(item);
+                    }
+                    console.log(twoPoints);
+                }
+                
+
+                // MENU : ITEM 1
+                menu.add("Direction to here", "itemB",
+                        function() {
+                            menu.close();
+                            addMarker(false);
+                        });
+
+                // MENU : ITEM 2
+                menu.add("Direction from here", "itemA separator",
+                        function() {
+                            menu.close();
+                            addMarker(true);
+                        })
+
+                // MENU : ITEM 3
+                menu.add("Zoom in", "zoomIn",
+                        function() {
+                            var map = $map.gmap3("get");
+                            map.setZoom(map.getZoom() + 1);
+                            menu.close();
+                        });
+
+                // MENU : ITEM 4
+                menu.add("Zoom out", "zoomOut",
+                        function() {
+                            var map = $map.gmap3("get");
+                            map.setZoom(map.getZoom() - 1);
+                            menu.close();
+                        });
+
+                // MENU : ITEM 5
+                menu.add("Center here", "centerHere",
+                        function() {
+                            $map.gmap3("get").setCenter(current.latLng);
+                            menu.close();
+                        });
+
+                // INITIALIZE GOOGLE MAP
+                $map.gmap3({
+                    map: {
+                        options: {
+                            center: [39.915, 116.404],
+                            zoom: 7,
+                            mapTypeControl: true,
+                            mapTypeControlOptions: {
+                                style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+                            },
+                            navigationControl: true,
+                            scrollwheel: true,
+                            streetViewControl: true
+                        },
+                        events: {
+                            rightclick: function(map, event) {
+                                current = event;
+                                menu.open(current);
+                            },
+                            click: function() {
+                                menu.close();
+                            },
+                            dragstart: function() {
+                                menu.close();
+                            },
+                            zoom_changed: function() {
+                                menu.close();
+                            }
+                        }
+                    }
+                });
+                
+
+            });
+        </script>  
     </head>
+
     <body>
-        <div class="btngrp">
-            <input type="button" class="add_point" id="add_point" name="add_point" value="添加途经点" />
-            <input type="button" name="generateRoute" id="generateRoute" value="生成路线" />
-        </div>
-        <div class="points">
-            <input type="text" name="start" id="start" value="" class="point" placeholder="起点"/>
-            <div class="onwaypoints">
-                <input type="text" name="onway0" id="onway0" value="" class="point onway" placeholder="途经点"/>
+        <div id="container">
+            <input type="text" id="address" name="address" placeholder="起点"/>
+            <div id="directions">
+
             </div>
-            <input type="text" name="end" id="end" value="" class="point" placeholder="终点"/>
+            <div id="googleMap"></div>
         </div>
-        <div style="width:820px;height:500px;border:1px solid gray" id="iCenter"></div>
-        <div id="result"></div>
-        <input type="hidden" id="curpos_id" value="" />
-        <input type="hidden" id="curpos_name" value="" />
     </body>
 </html>
