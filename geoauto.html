@@ -3,9 +3,27 @@
         <meta charset="UTF-8">
         <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
         <script src="http://maps.googleapis.com/maps/api/js?v=3&sensor=false&key=AIzaSyCgrYHfhsghwjRf_AjL_GBHUMVEc6z-auk&language=zh-CN&libraries=places,geometry"></script>
+
+        <!-- Loading Bootstrap -->
+        <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+
+        <!-- Loading Flat UI -->
+        <link href="css/flat-ui.css" rel="stylesheet">
+        <link href="css/demo.css" rel="stylesheet">
+        <!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+        <!--[if lt IE 9]>
+          <script src="js/html5shiv.js"></script>
+          <script src="js/respond.min.js"></script>
+        <![endif]-->
         <link rel="stylesheet" type="text/css" href="css/jquery-autocomplete.css" />
         <link rel="stylesheet" type="text/css" href="css/gmap3-menu.css" />
         <link type="text/css" rel="stylesheet" href="css/jquery.dropdown.css" />
+
+        <script src="js/jquery-ui-1.10.3.custom.min.js"></script>
+        <script src="js/jquery.ui.touch-punch.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+        <script src="js/jquery.placeholder.js"></script>
+
 
         <script type="text/javascript" src="js/jquery-autocomplete.js"></script>
         <script type="text/javascript" src="js/gmap3.min.js"></script>
@@ -13,10 +31,7 @@
         <script type="text/javascript" src="js/jquery.dropdown.min.js"></script>
 
         <style>
-            #container{
-                position:relative;
-                height:700px;
-            }
+            #container {margin:20px;}
             #directions{
                 position:absolute;
                 width: 23%;
@@ -26,10 +41,25 @@
             }
             #googleMap{
                 border: 1px dashed #C0C0C0;
-                width: 75%;
-                height: 700px;
+                width: 90%;
+                height: 600px;
             }
+            .start{
+                padding-left:0px;
+                padding-right:0px;
+            }
+            .end {padding-left:5px;padding-right:0px;}
+            .row {
+                margin-top:10px;
+            }
+            .onway {padding-right: 0px;}
+            .address {}
 
+            #waypointList {position: absolute;z-index: 99999;width:300px;}
+            #waypointList ul {margin-left: 0px;padding-left: 0px;}
+            .input-icon:hover{cursor: pointer}
+            .message {visibility:hidden;margin-bottom: 10px;height:50px;}
+            .alert{padding-bottom:10px;padding-top:10px;}
         </style>
 
         <script type="text/javascript">
@@ -37,11 +67,12 @@
 
                 var $map = $("#googleMap"),
                         menu = new Gmap3Menu($map),
-                        routePoints = [];
+                        routePoints = [],
+                        routePointsWI = [];
 
-                function drawRoute(twoPoints) {
+                var drawRoute = function(twoPoints) {
                     console.log('draw route');
-                    console.log(twoPoints.length);
+                    //console.log(twoPoints.length);
                     if (twoPoints.length > 1) {
                         var start = new google.maps.LatLng(twoPoints[0].lat(), twoPoints[0].lng());
                         var end = new google.maps.LatLng(twoPoints[1].lat(), twoPoints[1].lng());
@@ -78,11 +109,11 @@
                                                     // HERE send ajax request to backend to save the waypoints
                                                     //console.log(directionsrenderer);
                                                     var points = directionsrenderer.directions.routes[0].legs[0];
-                                                    console.log(points);
+                                                    //console.log(points);
                                                     for (var i = 0; i < points.via_waypoints.length; i++) {
                                                         var wp = points.via_waypoints[i];
-                                                        console.log(wp.lat());
-                                                        console.log(wp.lng());
+                                                        //console.log(wp.lat());
+                                                        //console.log(wp.lng());
                                                         var tmplocation = new google.maps.LatLng(wp.lat(), wp.lng());
                                                         updateRouteWithWaypoint(wp);
                                                         // add actions to this waypoint
@@ -139,7 +170,7 @@
                             }
                         });
                     }
-                }
+                };
 
                 // MENU : ITEM 1
                 menu.add("Direction to here", "itemB",
@@ -212,30 +243,72 @@
 
                 var c = 0;
                 $("#addWaypoint").click(function() {
-                    if ($(this).prev().attr('id') == 'start') {
-                        var input = '<input type="text" name="onway0" id="onway0" placeholder="途经点" class="address"/>';
-                        $(input).insertBefore($(this));
+                    var p = $(this).parent().prev();
+                    if (p.hasClass('start')) {
+                        var input = '';
+                        input += '<div class="col-xs-2 onway">';
+                        input += '<input type="text" id="onway0" name="onway0" class="address form-control" placeholder="途经点" />';
+                        input += '<span class="input-icon fui-eye" id="showOnwayList"></span>'
+                        input += '</div>';
+                        $(input).insertBefore($(this).parent());
                         autoCompleteIt('onway0');
                     } else {
-                        if ($('#waypointList').children().length == 0) {
-                            $('#waypointList').html('<ul class="dropdown-menu"></ul>');
+                        if (p.children().length == 2) {
+                            var list = '<div id="waypointList">';
+                            list += '<ul></ul>';
+                            list += '</div>';
+                            $(list).appendTo(p);
+                            $('.fui-eye').click(function() {
+                                $('#waypointList').slideToggle();
+                            });
                         }
-                        var input = '<input type="text" name="onway' + c + '" id="onway' + c + '" placeholder="途经点' + c + '" class="address"/>';
-                        $(input).appendTo($('.dropdown-menu'));
+                        var input = '<input type="text" name="onway' + c + '" id="onway' + c + '" placeholder="途经点' + c + '" class="address form-control"/>';
+                        $(input).appendTo($('#waypointList ul'));
                         autoCompleteIt('onway' + c);
+                        $('#waypointList').slideDown();
                     }
                     c++;
-                    $('#waypointList').dropdown('show');
+                    //$('#showOnwayList').parent().dropdown('toggle');
                 });
+                
+                var generateRoute = function() {
+                    console.log('generate');
+                    var c = routePoints.length;
+                    if (c < 2) {
+                        return false;
+                    }
+
+                    routePoints.sort(function(a, b) {
+                        return parseInt(a) > parseInt(b) ? 1 : -1
+                    });
+                    for (i in routePoints) {
+                        i = parseInt(i);
+                        if (i < c - 1)
+                            drawRoute([routePoints[i], routePoints[i + 1]]);
+                    }
+                };
 
                 $("#searchMap").click(function() {
                     // clear the route first
                     removePath();
-                    generateRoute();
+                    // check if the point is in the routePoints
+                    if (typeof routePointsWI['start'] == 'undefined') {
+                        updateRouteByAddress($('#start'));
+                    }
+                    $.each($('input[id^=onway]'), function(k, v) {
+                        var theId = $(v).attr('id').substr(5);
+                        if (typeof routePointsWI[theId] == 'undefined')
+                            updateRouteByAddress($(v));
+                    });
+                    if (typeof routePointsWI['end'] == 'undefined') {
+                        updateRouteByAddress($('#end'));
+                    }
+                    setTimeout(generateRoute, 1000);
+                    
                 });
 
                 // id: the sequence of input, eid
-                function autoCompleteIt(eid) {
+                var autoCompleteIt = function(eid) {
                     var elm = $('#' + eid);
                     var cid = eid;
                     if (cid != 'start' && cid != 'end') {
@@ -253,9 +326,12 @@
                                         },
                                         callback: function(results) {
                                             //console.log(results);
-                                            if (!results)
-                                                return;
+                                            if (!results) {
+                                                //showMsg('无法识别该地点，请使用其它地点！');
+                                                return false;
+                                            }
                                             elm.autocomplete("display", results, false);
+                                            return;
                                         }
                                     }
                                 });
@@ -275,55 +351,73 @@
                                     tmpPoint.html = item.formatted_address;
 //                                    console.log(cid);
 //                                    console.log(tmpPoint);
+                                    elm.parent().removeClass('has-error');
                                     updateRoute(cid, tmpPoint);
+                                },
+                                unselect: function() {
+                                    updateRouteByAddress(elm);
                                 }
-                            }
+                            },
+                            delay: 500
                         }).focus();
                     }
-                }
+                };
 
-                function removePath() {
-//                    $map.gmap3({
-//                        action: 'clear',
-//                        name: 'directionsrenderer'
-//                        // tag: 'path'  // works too with tag instead of name
-//                    });
+                var removePath = function() {
                     $map.gmap3({
                         clear: {
                             name: ["directionsrenderer"]
                         }
                     });
-                }
-                function updateRoute(cid, thePoint) {
+                };
+                var updateRoute = function(cid, thePoint) {
+                    console.log('update routePoints');
+                    //console.log(cid);
                     var tmp = new google.maps.LatLng(thePoint.lat, thePoint.lng);
-                    if (cid == 'start')
-                        routePoints[0] = tmp;
-                    else if (cid == 'end') {
-                        routePoints.push(tmp);
-                    } else
-                        routePoints[parseInt(cid) + 1] = tmp;
+                    routePointsWI[cid] = tmp;
+                    // update routePoints based on routePointsWI
+                    //console.log(routePointsWI);
+                    for (i in routePointsWI) {
+                        if (i == 'start')
+                            routePoints[0] = routePointsWI['start'];
+                        else if (i == 'end')
+                            routePoints[Object.size(routePointsWI) - 1] = routePointsWI['end'];
+                        else
+                            routePoints[parseInt(i) + 1] = routePointsWI[parseInt(i)];
+                    }
                     console.log(routePoints);
-                }
+                };
 
-                function generateRoute() {
-                    var c = routePoints.length;
-                    if (c < 2) {
-                        if ($('#start').val() != '' && $('#end').val() != '') {
-                            //TODO when routePoints < 2, we use form input to render the route
-
-                        } else
-                            return false;
+                var updateRouteByAddress = function(elm) {
+                    if (!elm)
+                        return false;
+                    var cid = elm.attr('id');
+                    if (cid != 'start' && cid != 'end') {
+                        cid = cid.substr(5);
                     }
-
-                    routePoints.sort(function(a, b) {
-                        return parseInt(a) > parseInt(b) ? 1 : -1
+                    $("#googleMap").gmap3({
+                        getlatlng: {
+                            address: elm.val(),
+                            callback: function(results) {
+                                console.log('none used, auto select place for user');
+                                console.log(results);
+                                if (!results) {
+                                    showMsg('无法识别该地点，请使用其它地点！', elm.parent());
+                                    return;
+                                }
+                                var location = results[0].geometry.location;
+                                var tmpPoint = {};
+                                tmpPoint.id = cid;
+                                tmpPoint.lat = location.lat();
+                                tmpPoint.lng = location.lng();
+                                tmpPoint.title = results[0].formatted_address;
+                                tmpPoint.html = results[0].formatted_address;
+                                updateRoute(cid, tmpPoint);
+                            }
+                        }
                     });
-                    for (i in routePoints) {
-                        i = parseInt(i);
-                        if (i < c - 1)
-                            drawRoute([routePoints[i], routePoints[i + 1]]);
-                    }
-                }
+                };
+
 
                 var rad = function(x) {
                     return x * Math.PI / 180;
@@ -342,7 +436,7 @@
                 };
 
                 // when dragging the route, we need to update routePoints
-                function getNewIndex(point) {
+                var getNewIndex = function(point) {
                     var dif = [];
                     for (i in routePoints) {
                         var tmp = {};
@@ -353,51 +447,14 @@
                     dif.sort(compare);
                     //console.log(dif);
                     return Math.max(dif[0].seq, dif[1].seq);
-                }
-                
-                function updateRouteWithWaypoint(point) {
+                };
+
+                var updateRouteWithWaypoint = function(point) {
                     var idx = getNewIndex(point);
                     console.log(routePoints);
                     routePoints.splice(idx, 0, point);
                     console.log(routePoints);
-                }
-
-                // get distance between two points
-                function getDistanceBP(org, dest) {
-                    $("test").gmap3({
-                        getdistance: {
-                            options: {
-                                origins: [org],
-                                destinations: [dest],
-                                travelMode: google.maps.TravelMode.DRIVING
-                            },
-                            callback: function(results, status) {
-                                var html = "";
-                                if (results) {
-                                    for (var i = 0; i < results.rows.length; i++) {
-                                        var elements = results.rows[i].elements;
-                                        for (var j = 0; j < elements.length; j++) {
-                                            switch (elements[j].status) {
-                                                case "OK":
-                                                    html += elements[j].distance.text + " (" + elements[j].duration.text + ")<br />";
-                                                    break;
-                                                case "NOT_FOUND":
-                                                    html += "The origin and/or destination of this pairing could not be geocoded<br />";
-                                                    break;
-                                                case "ZERO_RESULTS":
-                                                    html += "No route could be found between the origin and destination.<br />";
-                                                    break;
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    html = "error";
-                                }
-                                $("#test").html(html);
-                            }
-                        }
-                    });
-                }
+                };
 
                 Object.size = function(obj) {
                     var size = 0, key;
@@ -408,33 +465,64 @@
                     return size;
                 };
 
-                function compare(a, b) {
+                var compare = function(a, b) {
                     if (a.diff < b.diff)
                         return -1;
                     if (a.diff > b.diff)
                         return 1;
                     return 0;
-                }
+                };
+
+                var showMsg = function(msg, elm, msgType) {
+                    if (typeof msgType === 'undefined')
+                        msgType = 'error';
+                    var cls = 'alert alert-danger';
+                    switch (msgType) {
+                        case 'success':
+                            cls = 'alert alert-success';
+                            break;
+                        case 'info':
+                            cls = 'alert alert-info';
+                            break;
+                        default:
+                    }
+                    elm.addClass('has-error');
+                    $('#message').html(msg);
+                    $('#message').attr('class', cls);
+                    $('#message').css('visibility', 'visible');
+                    $('#message').animate({'opacity': 0}, 1000).animate({'opacity': 1}, 1000);
+                };
 
                 autoCompleteIt('start');
                 autoCompleteIt('end');
             });
-        </script>  
+        </script>
     </head>
 
     <body>
-        <div id="container">
-            <input type="text" id="start" name="start" placeholder="起点"  class="address"/>
-            <input type="button" name="addWaypoint" id="addWaypoint" value="+" data-dropdown="#waypointList" data-horizontal-offset="-250"/>
-            <input type="text" id="end" name="end" placeholder="终点"  class="address"/>
-            <input type="button" id="searchMap" name="searchMap" value="生成路线"/>
-            <div id="directions">
+        <div id="container" class="col-md-12">
+            <div class="row message"><div id="message" class="alert"></div></div>
+            <div class="row">
+                <div>
+                    <div class="col-xs-2 start">
+                        <input type="text" id="start" name="start" class="address form-control" placeholder="起点" />
+                        <span class="input-icon fui-location"></span>
+                    </div>
+
+                    <div class="col-xs-2 end">
+                        <input type="text" id="end" name="end" class="address form-control" placeholder="终点" />
+                        <span class="input-icon fui-plus" id="addWaypoint" title="添加途经点"></span>
+                    </div>
+                    <div class="col-xs-2">
+                        <a class="btn btn-block btn-lg btn-primary" href="javascript:;" id="searchMap" name="searchMap">生成路线</a>
+                    </div>
+                </div>
 
             </div>
-            <div id="googleMap"></div>
-            <div id="waypointList" class="dropdown dropdown-tip">
-
+            <div class="row">
+                <div id="googleMap"></div>
             </div>
         </div>
+
     </body>
 </html>
