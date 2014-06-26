@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>    
+    <head>
+        <meta charset="UTF-8">
+        <!-- <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>-->
+        <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
+        <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
+        <script type="text/javascript" src="http://api.map.baidu.com/library/SearchInfoWindow/1.5/src/SearchInfoWindow_min.js"></script>
+        <link rel="stylesheet" href="http://api.map.baidu.com/library/SearchInfoWindow/1.5/src/SearchInfoWindow_min.css" />
+        <script type="text/javascript" src="http://api.map.baidu.com/library/MarkerTool/1.2/src/MarkerTool_min.js"></script>
+
+        <!-- Loading Bootstrap -->
+        <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+
+        <!-- Loading Flat UI -->
+        <link href="css/flat-ui.css" rel="stylesheet">
+        <link href="css/demo.css" rel="stylesheet">
+        <!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+        <!--[if lt IE 9]>
+          <script src="js/html5shiv.js"></script>
+          <script src="js/respond.min.js"></script>
+        <![endif]-->
+        <link rel="stylesheet" type="text/css" href="css/jquery-autocomplete.css" />
+        <link type="text/css" rel="stylesheet" href="css/jquery.dropdown.css" />
+
+        <script src="js/jquery-ui-1.10.3.custom.min.js"></script>
+        <script src="js/jquery.ui.touch-punch.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+        <script src="js/jquery.placeholder.js"></script>
+        <script src="js/jquery-autocomplete.js"></script>
+        <script src="js/jquery.dropdown.min.js"></script>
+        <script src="js/mymap.js"></script>
+        <style>
+            #container {margin:20px;}
+            #directions{
+                position:absolute;
+                width: 23%;
+                right:1%;
+                height: 690px;
+                overflow:auto;
+            }
+            #baiduMap{
+                border: 1px dashed #C0C0C0;
+                height: 600px;
+            }
+            .start{
+                padding-left:0px;
+                padding-right:0px;
+            }
+            .end {padding-left:5px;padding-right:0px;}
+            .row {
+                margin-top:10px;
+            }
+            .onway {padding-right: 0px;}
+            .address {}
+
+            #waypointList {position: absolute;z-index: 99999;width:300px;}
+            #waypointList ul {margin-left: 0px;padding-left: 0px;}
+            .input-icon:hover{cursor: pointer}
+            .message {visibility:hidden;margin-bottom: 10px;height:50px;}
+            .alert{padding-bottom:10px;padding-top:10px;}
+        </style>
+
+        <script type="text/javascript">
+            
+            $(function() {
+                myMap.initMap('baiduMap', 116.404, 39.915, 5);
+                autoCompleteIt('start');
+                autoCompleteIt('end');
+                // bind event on addWayPoint
+                bindAddWaypoint();
+                bindSearchMap();
+                bindPolicySearch();
+                bindClearMap();
+            });
+        </script>
+    </head>
+
+    <body>
+        <div id="container" class="col-md-12">
+            <div class="row message col-xs-11"><div id="message" class="alert"></div></div>
+            <div class="row col-xs-11">
+                <div>
+                    <div class="col-xs-2 start">
+                        <input type="text" id="start" name="start" class="address form-control" placeholder="起点" />
+                        <span class="input-icon fui-location"></span>
+                    </div>
+
+                    <div class="col-xs-2 end">
+                        <input type="text" id="end" name="end" class="address form-control" placeholder="终点" />
+                        <span class="input-icon fui-plus" id="addWaypoint" title="添加途经点" data-toggle="tooltip" data-placement="top" data-original-title="添加途经点"></span>
+                    </div>
+                    <div class="col-xs-2">
+                        <a class="btn btn-block btn-primary" href="javascript:;" id="searchMap" name="searchMap">生成路线</a>
+                    </div>
+                    <div class="col-xs-1">
+                        <a class="btn btn-primary" href="javascript:;" id="clearMap" name="clearMap">清除路线</a>
+                    </div>
+                    <div style="float:right" class="btn-toolbar">
+                        <div class="btn-group">
+                            <button class="btn btn-large btn-primary policyBtn" id="leastTime" data-po="leastTime">最少时间</button>
+                            <button class="btn btn-large btn-primary policyBtn" id="shortestPath" data-po="shortestPath">最短路程</button>
+                            <button class="btn btn-large btn-primary policyBtn" id="noHighway" data-po="noHighway">不走高速</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row col-xs-11">
+                <div id="baiduMap"></div>
+            </div>
+        </div>
+
+    </body>
+</html>

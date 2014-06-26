@@ -339,7 +339,6 @@
 
         // run the completion : use local source
         function completeSource() {
-            console.log('use local');
             show(getSource(options.source), options.match);
         }
 
