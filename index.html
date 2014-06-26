@@ -1,8 +1,13 @@
+<!DOCTYPE html>
 <html>    
     <head>
         <meta charset="UTF-8">
-        <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
-        <script src="http://maps.googleapis.com/maps/api/js?v=3&sensor=false&key=AIzaSyCgrYHfhsghwjRf_AjL_GBHUMVEc6z-auk&language=zh-CN&libraries=places,geometry"></script>
+        <!-- <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.0.min.js"></script>-->
+        <script src="http://libs.baidu.com/jquery/1.9.0/jquery.js"></script>
+        <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=n0xLnhqRKKrS49n5qvuRRNfh"></script>
+        <script type="text/javascript" src="http://api.map.baidu.com/library/SearchInfoWindow/1.5/src/SearchInfoWindow_min.js"></script>
+        <link rel="stylesheet" href="http://api.map.baidu.com/library/SearchInfoWindow/1.5/src/SearchInfoWindow_min.css" />
+        <script type="text/javascript" src="http://api.map.baidu.com/library/MarkerTool/1.2/src/MarkerTool_min.js"></script>
 
         <!-- Loading Bootstrap -->
         <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
@@ -16,20 +21,15 @@
           <script src="js/respond.min.js"></script>
         <![endif]-->
         <link rel="stylesheet" type="text/css" href="css/jquery-autocomplete.css" />
-        <link rel="stylesheet" type="text/css" href="css/gmap3-menu.css" />
         <link type="text/css" rel="stylesheet" href="css/jquery.dropdown.css" />
 
         <script src="js/jquery-ui-1.10.3.custom.min.js"></script>
         <script src="js/jquery.ui.touch-punch.min.js"></script>
         <script src="js/bootstrap.min.js"></script>
         <script src="js/jquery.placeholder.js"></script>
-
-
-        <script type="text/javascript" src="js/jquery-autocomplete.js"></script>
-        <script type="text/javascript" src="js/gmap3.min.js"></script>
-        <script type="text/javascript" src="js/gmap3-menu.js"></script>
-        <script type="text/javascript" src="js/jquery.dropdown.min.js"></script>
-
+        <script src="js/jquery-autocomplete.js"></script>
+        <script src="js/jquery.dropdown.min.js"></script>
+        <script src="js/mymap.js"></script>
         <style>
             #container {margin:20px;}
             #directions{
@@ -39,9 +39,8 @@
                 height: 690px;
                 overflow:auto;
             }
-            #googleMap{
+            #baiduMap{
                 border: 1px dashed #C0C0C0;
-                width: 90%;
                 height: 600px;
             }
             .start{
@@ -63,446 +62,24 @@
         </style>
 
         <script type="text/javascript">
+            
             $(function() {
-
-                var $map = $("#googleMap"),
-                        menu = new Gmap3Menu($map),
-                        routePoints = [],
-                        routePointsWI = [];
-
-                var drawRoute = function(twoPoints) {
-                    console.log('draw route');
-                    //console.log(twoPoints.length);
-                    if (twoPoints.length > 1) {
-                        var start = new google.maps.LatLng(twoPoints[0].lat(), twoPoints[0].lng());
-                        var end = new google.maps.LatLng(twoPoints[1].lat(), twoPoints[1].lng());
-                        $map.gmap3({
-                            getroute: {
-                                options: {
-                                    origin: start,
-                                    destination: end,
-                                    travelMode: google.maps.DirectionsTravelMode.DRIVING
-                                },
-                                callback: function(results) {
-                                    console.log(results);
-                                    if (!results)
-                                        return;
-                                    $(this).gmap3({
-                                        map: {
-                                            options: {
-                                                center: [39.915, 116.404],
-                                                zoom: 7
-                                            }
-                                        },
-                                        directionsrenderer: {
-                                            options: {
-                                                draggable: true,
-                                                directions: results,
-                                                markerOptions: {
-                                                    draggable: true,
-                                                    icon: 'http://maps.google.com/mapfiles/marker_green.png'
-                                                }
-                                            },
-                                            events: {
-                                                directions_changed: function(directionsrenderer, event, context) {
-                                                    console.log('route chaned');
-                                                    // HERE send ajax request to backend to save the waypoints
-                                                    //console.log(directionsrenderer);
-                                                    var points = directionsrenderer.directions.routes[0].legs[0];
-                                                    //console.log(points);
-                                                    for (var i = 0; i < points.via_waypoints.length; i++) {
-                                                        var wp = points.via_waypoints[i];
-                                                        //console.log(wp.lat());
-                                                        //console.log(wp.lng());
-                                                        var tmplocation = new google.maps.LatLng(wp.lat(), wp.lng());
-                                                        updateRouteWithWaypoint(wp);
-                                                        // add actions to this waypoint
-                                                        $map.gmap3({
-                                                            //clear: "marker",
-                                                            marker: {
-                                                                latLng: tmplocation,
-                                                                options: {
-                                                                    draggable: true,
-                                                                    icon: 'http://maps.google.com/mapfiles/marker_green.png'
-                                                                },
-                                                                events: {
-                                                                    mouseover: function(marker, event, context) {
-                                                                        console.log('im over');
-                                                                    },
-                                                                    click: function(marker, event, context) {
-                                                                        console.log('im clicked');
-                                                                        $map.gmap3({
-                                                                            infowindow: {
-                                                                                //address:tmplocation,
-                                                                                options: {
-                                                                                    position: tmplocation,
-                                                                                    content: "You can do anything here: <input type='text' name='note' id='note' /><input type='button' id='addnote' name='addnote' value='添加备注'/>"
-                                                                                },
-                                                                                events: {
-                                                                                    closeclick: function(infowindow) {
-                                                                                        alert("closing : " + infowindow.getContent());
-                                                                                    },
-                                                                                    domready: function(infowindow) {
-                                                                                        $('#addnote').click(function() {
-                                                                                            alert('add note success');
-                                                                                            infowindow.close();
-                                                                                        });
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        });
-                                                                    },
-                                                                    dragend: function(marker) {
-                                                                        console.log('im dragged');
-                                                                        console.log(marker.position.lat());
-                                                                        console.log(marker.position.lng());
-                                                                    }
-                                                                }
-                                                            }
-                                                        });
-                                                    }
-
-                                                }
-                                            }
-                                        }
-                                    });
-                                }
-                            }
-                        });
-                    }
-                };
-
-                // MENU : ITEM 1
-                menu.add("Direction to here", "itemB",
-                        function() {
-                            menu.close();
-                            addMarker(false);
-                        });
-
-                // MENU : ITEM 2
-                menu.add("Direction from here", "itemA separator",
-                        function() {
-                            menu.close();
-                            addMarker(true);
-                        })
-
-                // MENU : ITEM 3
-                menu.add("Zoom in", "zoomIn",
-                        function() {
-                            var map = $map.gmap3("get");
-                            map.setZoom(map.getZoom() + 1);
-                            menu.close();
-                        });
-
-                // MENU : ITEM 4
-                menu.add("Zoom out", "zoomOut",
-                        function() {
-                            var map = $map.gmap3("get");
-                            map.setZoom(map.getZoom() - 1);
-                            menu.close();
-                        });
-
-                // MENU : ITEM 5
-                menu.add("Center here", "centerHere",
-                        function() {
-                            $map.gmap3("get").setCenter(current.latLng);
-                            menu.close();
-                        });
-
-                // INITIALIZE GOOGLE MAP
-                $map.gmap3({
-                    map: {
-                        options: {
-                            center: [39.915, 116.404],
-                            zoom: 7,
-                            mapTypeControl: true,
-                            mapTypeControlOptions: {
-                                style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
-                            },
-                            navigationControl: true,
-                            scrollwheel: true,
-                            streetViewControl: true
-                        },
-                        events: {
-                            rightclick: function(map, event) {
-                                current = event;
-                                menu.open(current);
-                            },
-                            click: function() {
-                                menu.close();
-                            },
-                            dragstart: function() {
-                                menu.close();
-                            },
-                            zoom_changed: function() {
-                                menu.close();
-                            }
-                        }
-                    }
-                });
-
-                var c = 0;
-                $("#addWaypoint").click(function() {
-                    var p = $(this).parent().prev();
-                    if (p.hasClass('start')) {
-                        var input = '';
-                        input += '<div class="col-xs-2 onway">';
-                        input += '<input type="text" id="onway0" name="onway0" class="address form-control" placeholder="途经点" />';
-                        input += '<span class="input-icon fui-eye" id="showOnwayList"></span>'
-                        input += '</div>';
-                        $(input).insertBefore($(this).parent());
-                        autoCompleteIt('onway0');
-                    } else {
-                        if (p.children().length == 2) {
-                            var list = '<div id="waypointList">';
-                            list += '<ul></ul>';
-                            list += '</div>';
-                            $(list).appendTo(p);
-                            $('.fui-eye').click(function() {
-                                $('#waypointList').slideToggle();
-                            });
-                        }
-                        var input = '<input type="text" name="onway' + c + '" id="onway' + c + '" placeholder="途经点' + c + '" class="address form-control"/>';
-                        $(input).appendTo($('#waypointList ul'));
-                        autoCompleteIt('onway' + c);
-                        $('#waypointList').slideDown();
-                    }
-                    c++;
-                    //$('#showOnwayList').parent().dropdown('toggle');
-                });
-                
-                var generateRoute = function() {
-                    console.log('generate');
-                    var c = routePoints.length;
-                    if (c < 2) {
-                        return false;
-                    }
-
-                    routePoints.sort(function(a, b) {
-                        return parseInt(a) > parseInt(b) ? 1 : -1
-                    });
-                    for (i in routePoints) {
-                        i = parseInt(i);
-                        if (i < c - 1)
-                            drawRoute([routePoints[i], routePoints[i + 1]]);
-                    }
-                };
-
-                $("#searchMap").click(function() {
-                    // clear the route first
-                    removePath();
-                    // check if the point is in the routePoints
-                    if (typeof routePointsWI['start'] == 'undefined') {
-                        updateRouteByAddress($('#start'));
-                    }
-                    $.each($('input[id^=onway]'), function(k, v) {
-                        var theId = $(v).attr('id').substr(5);
-                        if (typeof routePointsWI[theId] == 'undefined')
-                            updateRouteByAddress($(v));
-                    });
-                    if (typeof routePointsWI['end'] == 'undefined') {
-                        updateRouteByAddress($('#end'));
-                    }
-                    setTimeout(generateRoute, 1000);
-                    
-                });
-
-                // id: the sequence of input, eid
-                var autoCompleteIt = function(eid) {
-                    var elm = $('#' + eid);
-                    var cid = eid;
-                    if (cid != 'start' && cid != 'end') {
-                        cid = cid.substr(5);
-                    }
-                    //console.log(cid);
-                    if (typeof elm.attr('id') != 'undefined') {
-                        elm.autocomplete({
-                            source: function() {
-                                $map.gmap3({
-                                    getaddress: {
-                                        address: {
-                                            address: $(this).val(),
-                                            region: 'zh-cn'
-                                        },
-                                        callback: function(results) {
-                                            //console.log(results);
-                                            if (!results) {
-                                                //showMsg('无法识别该地点，请使用其它地点！');
-                                                return false;
-                                            }
-                                            elm.autocomplete("display", results, false);
-                                            return;
-                                        }
-                                    }
-                                });
-                            },
-                            cb: {
-                                cast: function(item) {
-                                    return item.formatted_address;
-                                },
-                                select: function(item) {
-                                    //console.log(item.geometry.location.lat());
-                                    //console.log(item.geometry.location.lng());
-                                    var tmpPoint = {};
-                                    tmpPoint.id = cid;
-                                    tmpPoint.lat = item.geometry.location.lat();
-                                    tmpPoint.lng = item.geometry.location.lng();
-                                    tmpPoint.title = item.formatted_address;
-                                    tmpPoint.html = item.formatted_address;
-//                                    console.log(cid);
-//                                    console.log(tmpPoint);
-                                    elm.parent().removeClass('has-error');
-                                    updateRoute(cid, tmpPoint);
-                                },
-                                unselect: function() {
-                                    updateRouteByAddress(elm);
-                                }
-                            },
-                            delay: 500
-                        }).focus();
-                    }
-                };
-
-                var removePath = function() {
-                    $map.gmap3({
-                        clear: {
-                            name: ["directionsrenderer"]
-                        }
-                    });
-                };
-                var updateRoute = function(cid, thePoint) {
-                    console.log('update routePoints');
-                    //console.log(cid);
-                    var tmp = new google.maps.LatLng(thePoint.lat, thePoint.lng);
-                    routePointsWI[cid] = tmp;
-                    // update routePoints based on routePointsWI
-                    //console.log(routePointsWI);
-                    for (i in routePointsWI) {
-                        if (i == 'start')
-                            routePoints[0] = routePointsWI['start'];
-                        else if (i == 'end')
-                            routePoints[Object.size(routePointsWI) - 1] = routePointsWI['end'];
-                        else
-                            routePoints[parseInt(i) + 1] = routePointsWI[parseInt(i)];
-                    }
-                    console.log(routePoints);
-                };
-
-                var updateRouteByAddress = function(elm) {
-                    if (!elm)
-                        return false;
-                    var cid = elm.attr('id');
-                    if (cid != 'start' && cid != 'end') {
-                        cid = cid.substr(5);
-                    }
-                    $("#googleMap").gmap3({
-                        getlatlng: {
-                            address: elm.val(),
-                            callback: function(results) {
-                                console.log('none used, auto select place for user');
-                                console.log(results);
-                                if (!results) {
-                                    showMsg('无法识别该地点，请使用其它地点！', elm.parent());
-                                    return;
-                                }
-                                var location = results[0].geometry.location;
-                                var tmpPoint = {};
-                                tmpPoint.id = cid;
-                                tmpPoint.lat = location.lat();
-                                tmpPoint.lng = location.lng();
-                                tmpPoint.title = results[0].formatted_address;
-                                tmpPoint.html = results[0].formatted_address;
-                                updateRoute(cid, tmpPoint);
-                            }
-                        }
-                    });
-                };
-
-
-                var rad = function(x) {
-                    return x * Math.PI / 180;
-                };
-
-                var getDistance = function(p1, p2) {
-                    var R = 6378137; // Earth’s mean radius in meter
-                    var dLat = rad(p2.lat() - p1.lat());
-                    var dLong = rad(p2.lng() - p1.lng());
-                    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                            Math.cos(rad(p1.lat())) * Math.cos(rad(p2.lat())) *
-                            Math.sin(dLong / 2) * Math.sin(dLong / 2);
-                    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    var d = R * c;
-                    return d; // returns the distance in meter
-                };
-
-                // when dragging the route, we need to update routePoints
-                var getNewIndex = function(point) {
-                    var dif = [];
-                    for (i in routePoints) {
-                        var tmp = {};
-                        tmp.seq = i;
-                        tmp.diff = getDistance(point, routePoints[i]);
-                        dif.push(tmp);
-                    }
-                    dif.sort(compare);
-                    //console.log(dif);
-                    return Math.max(dif[0].seq, dif[1].seq);
-                };
-
-                var updateRouteWithWaypoint = function(point) {
-                    var idx = getNewIndex(point);
-                    console.log(routePoints);
-                    routePoints.splice(idx, 0, point);
-                    console.log(routePoints);
-                };
-
-                Object.size = function(obj) {
-                    var size = 0, key;
-                    for (key in obj) {
-                        if (obj.hasOwnProperty(key))
-                            size++;
-                    }
-                    return size;
-                };
-
-                var compare = function(a, b) {
-                    if (a.diff < b.diff)
-                        return -1;
-                    if (a.diff > b.diff)
-                        return 1;
-                    return 0;
-                };
-
-                var showMsg = function(msg, elm, msgType) {
-                    if (typeof msgType === 'undefined')
-                        msgType = 'error';
-                    var cls = 'alert alert-danger';
-                    switch (msgType) {
-                        case 'success':
-                            cls = 'alert alert-success';
-                            break;
-                        case 'info':
-                            cls = 'alert alert-info';
-                            break;
-                        default:
-                    }
-                    elm.addClass('has-error');
-                    $('#message').html(msg);
-                    $('#message').attr('class', cls);
-                    $('#message').css('visibility', 'visible');
-                    $('#message').animate({'opacity': 0}, 1000).animate({'opacity': 1}, 1000);
-                };
-
+                myMap.initMap('baiduMap', 116.404, 39.915, 5);
                 autoCompleteIt('start');
                 autoCompleteIt('end');
+                // bind event on addWayPoint
+                bindAddWaypoint();
+                bindSearchMap();
+                bindPolicySearch();
+                bindClearMap();
             });
         </script>
     </head>
 
     <body>
         <div id="container" class="col-md-12">
-            <div class="row message"><div id="message" class="alert"></div></div>
-            <div class="row">
+            <div class="row message col-xs-11"><div id="message" class="alert"></div></div>
+            <div class="row col-xs-11">
                 <div>
                     <div class="col-xs-2 start">
                         <input type="text" id="start" name="start" class="address form-control" placeholder="起点" />
@@ -511,16 +88,25 @@
 
                     <div class="col-xs-2 end">
                         <input type="text" id="end" name="end" class="address form-control" placeholder="终点" />
-                        <span class="input-icon fui-plus" id="addWaypoint" title="添加途经点"></span>
+                        <span class="input-icon fui-plus" id="addWaypoint" title="添加途经点" data-toggle="tooltip" data-placement="top" data-original-title="添加途经点"></span>
                     </div>
                     <div class="col-xs-2">
-                        <a class="btn btn-block btn-lg btn-primary" href="javascript:;" id="searchMap" name="searchMap">生成路线</a>
+                        <a class="btn btn-block btn-primary" href="javascript:;" id="searchMap" name="searchMap">生成路线</a>
+                    </div>
+                    <div class="col-xs-1">
+                        <a class="btn btn-primary" href="javascript:;" id="clearMap" name="clearMap">清除路线</a>
+                    </div>
+                    <div style="float:right" class="btn-toolbar">
+                        <div class="btn-group">
+                            <button class="btn btn-large btn-primary policyBtn" id="leastTime" data-po="leastTime">最少时间</button>
+                            <button class="btn btn-large btn-primary policyBtn" id="shortestPath" data-po="shortestPath">最短路程</button>
+                            <button class="btn btn-large btn-primary policyBtn" id="noHighway" data-po="noHighway">不走高速</button>
+                        </div>
                     </div>
                 </div>
-
             </div>
-            <div class="row">
-                <div id="googleMap"></div>
+            <div class="row col-xs-11">
+                <div id="baiduMap"></div>
             </div>
         </div>
 
