@@ -77,19 +77,20 @@ var myMap = {
                 text: '为此点添加备注',
                 callback: function(e) {
                     console.log(e);
-                    var content = getNoteForm();
+                    var content = document.getElementById('noteboxform');
+                    $('#noteboxform').css('display', 'block');
                     var infoWin = new BMap.InfoWindow(content);
                     var tmpMarker = new BMap.Marker(e);
                     myMap._mapObj.addOverlay(tmpMarker);
-                    tmpMarker.addEventListener("load", function() {
-                        var tm = this;
-                        tm.openInfoWindow(infoWin);
-                        $('#anypoint_btn').click(function() {
-                            alert($('#anypoint_note').val());
-                            tm.closeInfoWindow();
-                            return false;
-                        });
-                    });
+                    tmpMarker.openInfoWindow(infoWin);
+                    infoWin.redraw();
+                    bindAddNote();
+//                    $('#anypoint_btn').live('click', function() {
+//                        alert($('#anypoint_note').val());
+//                        tmpMarker.closeInfoWindow();
+//                        return false;
+//                    });
+                    
                 }
             }
 
@@ -467,6 +468,7 @@ function autoCompleteIt(eid) {
                     tmpMarker.addEventListener("click", function() {
                         var tm = this;
                         tm.openInfoWindow(infoWin);
+                        infoWin.redraw();
                         $('#addNote' + cid).click(function() {
                             alert($('#textarea' + cid).val());
                             tm.closeInfoWindow();
@@ -506,6 +508,14 @@ function bindSaveNote(cid) {
         //console.log('ddd');
         alert($('#textarea' + cid).val());
         return false;
+    });
+}
+
+function bindAddNote() {
+    $('#anypoint_btn').click(function(){
+        alert($('#anypoint_note').val());
+        // send info to backend
+        
     });
 }
 
