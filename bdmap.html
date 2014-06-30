@@ -76,6 +76,7 @@
             }
             #waypointList ul{list-style-type: none}
             #waypointList ul li div{margin-bottom: 0px;}
+            #noteboxform {display:none;}
         </style>
 
         <script type="text/javascript">
@@ -124,6 +125,14 @@
             </div>
             <div class="row col-xs-11">
                 <div id="baiduMap"></div>
+            </div>
+            
+            <div id="noteboxform">
+                <div class="notebox">
+                    <div class="title">添加备注</div>
+                    <textarea id="anypoint_note" cols="20" rows="3"></textarea>
+                    <input type="button" id="anypoint_btn" value="确定" class="btn btn-block btn-sm btn-primary"/>
+                </div>
             </div>
         </div>
 
