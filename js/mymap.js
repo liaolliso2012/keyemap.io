@@ -81,7 +81,7 @@ var myMap = {
                     var infoWin = new BMap.InfoWindow(content);
                     var tmpMarker = new BMap.Marker(e);
                     myMap._mapObj.addOverlay(tmpMarker);
-                    tmpMarker.addEventListener("click", function() {
+                    tmpMarker.addEventListener("load", function() {
                         var tm = this;
                         tm.openInfoWindow(infoWin);
                         $('#anypoint_btn').click(function() {
