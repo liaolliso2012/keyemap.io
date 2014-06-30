@@ -53,9 +53,9 @@ var myMap = {
                 text: '以此为途经点',
                 callback: function(e) {
                     var idx = myMap.getNewIndex(e);
-                    console.log(idx);
+                    //console.log(idx);
                     myMap.routePoints.splice(idx, 0, e);
-                    console.log(myMap.routePoints);
+                    //console.log(myMap.routePoints);
                     myMap.generateRoute();
                 }
             },
@@ -70,6 +70,25 @@ var myMap = {
                             myMap.updateRoute('end', e);
                             myMap.generateRoute();
                         }
+                    });
+                }
+            },
+            {
+                text: '为此点添加备注',
+                callback: function(e) {
+                    console.log(e);
+                    var content = getNoteForm();
+                    var infoWin = new BMap.InfoWindow(content);
+                    var tmpMarker = new BMap.Marker(e);
+                    myMap._mapObj.addOverlay(tmpMarker);
+                    tmpMarker.addEventListener("click", function() {
+                        var tm = this;
+                        tm.openInfoWindow(infoWin);
+                        $('#anypoint_btn').click(function() {
+                            alert($('#anypoint_note').val());
+                            tm.closeInfoWindow();
+                            return false;
+                        });
                     });
                 }
             }
@@ -107,16 +126,6 @@ var myMap = {
     updateRoute: function(cid, thePoint) {
         //console.log('update routePoints');
         this.routePointsWI[cid] = thePoint;
-        // update routePoints based on routePointsWI
-        for (i in this.routePointsWI) {
-            if (i == 'start')
-                this.routePoints[0] = this.routePointsWI['start'];
-            else if (i == 'end')
-                this.routePoints[Object.size(this.routePointsWI) - 1] = this.routePointsWI['end'];
-            else
-                this.routePoints[parseInt(i) + 1] = this.routePointsWI[parseInt(i)];
-        }
-        //console.log(this.routePoints);
     },
     updateRouteByAddress: function(elm) {
         if (!elm)
@@ -144,8 +153,34 @@ var myMap = {
         myMap._mapObj.clearOverlays();
     },
     generateRoute: function() {
+        // update routePoints based on routePointsWI
+        var start = myMap.routePointsWI['start'];
+        var end = myMap.routePointsWI['end'];
+        var max = 0;
+        myMap.routePoints = [];
+        for (i in myMap.routePointsWI) {
+            //console.log(i);
+            //console.log(typeof i);
+            if($.isNumeric(i) && typeof myMap.routePointsWI[i] !== 'undefined') {
+                i = parseInt(i);
+                if(i > max)
+                    max = i;
+                myMap.routePoints[i + 1] = myMap.routePointsWI[i];
+            }
+        }
+        if(start)
+            myMap.routePoints[0] = start;
+        if(end)
+            myMap.routePoints[max+2] = end;
+        // get rid of undefined
+        myMap.routePoints = jQuery.grep(myMap.routePoints, function(value) {
+            return typeof value != 'undefined';
+        });
+        //console.log(myMap.routePointsWI);
+        //console.log(myMap.routePoints);
         //console.log(myMap.routePoints);
         myMap.clearMap();
+
         var c = myMap.routePoints.length;
         if (c < 2) {
             return false;
@@ -154,9 +189,12 @@ var myMap = {
         myMap.routePoints.sort(function(a, b) {
             return parseInt(a) > parseInt(b) ? 1 : -1
         });
+        //console.log('begin search');
         for (i in myMap.routePoints) {
             i = parseInt(i);
             if (i < c - 1) {
+                if(typeof myMap.routePoints[i] === 'undefined')
+                    continue;
                 var myLabel;
                 if (i == 0)
                     myLabel = '起点';
@@ -211,7 +249,8 @@ var myMap = {
             myMap._mapObj.addOverlay(polyline);
 
         });
-
+        //console.log(myMap.routePointsWI);
+        //console.log(myMap.routePoints);
         return;
     },
     //自定义起点标注
@@ -284,13 +323,16 @@ function bindAddWaypoint() {
             var input = '';
             input += '<div class="col-xs-2 onway">';
             input += '<input type="text" id="onway0" name="onway0" class="address form-control" placeholder="途经点" />';
+            input += '<span class="input-icon fui-cross delwp" data-toggle="tooltip" data-placement="top" data-original-title="点击删除此途经点"></span>'
             input += '<span class="input-icon fui-eye" id="showOnwayList" data-toggle="tooltip" data-placement="top" data-original-title="点击收缩途经点列表"></span>'
             input += '</div>';
             $(input).insertBefore($(this).parent());
             $('#showOnwayList').tooltip();
+            $('.fui-cross').tooltip();
             autoCompleteIt('onway0');
+            bindDelwp($('#onway0').parent());
         } else {
-            if (p.children().length == 2) {
+            if (p.children().length == 3) {
                 var list = '<div id="waypointList">';
                 list += '<ul></ul>';
                 list += '</div>';
@@ -299,13 +341,58 @@ function bindAddWaypoint() {
                     $('#waypointList').slideToggle();
                 });
             }
-            var input = '<input type="text" name="onway' + myMap._c + '" id="onway' + myMap._c + '" placeholder="途经点' + myMap._c + '" class="address form-control"/>';
+            var input = '<li id="li'+myMap._c+'"><div class="form-group"><input type="text" name="onway' + myMap._c + '" id="onway' + myMap._c + '" placeholder="途经点' + myMap._c + '" class="address form-control"/>';
+            input += '<span class="input-icon fui-cross delwp"></span></div></li>';
             $(input).appendTo($('#waypointList ul'));
             autoCompleteIt('onway' + myMap._c);
             $('#waypointList').slideDown();
+            bindDelwp($('#li'+myMap._c));
         }
         myMap._c++;
         //$('#showOnwayList').parent().dropdown('toggle');
+    });
+    
+}
+
+function bindDelwp(p) {
+    $('.delwp', p).click(function(){
+        //console.log('del it');
+        //console.log(Object.size(myMap.routePointsWI));
+        //console.log(myMap.routePoints);
+        var theId = $(this).prev().attr('id');
+        if(theId){
+            var seq = parseInt(theId.substr(5));
+//            // remove it from routePointsWI
+//            if(typeof myMap.routePointsWI[seq] !== 'undefined')
+//                myMap.routePointsWI.splice(seq, 1);
+//            
+//            // remove it from routePoints
+//            if(typeof myMap.routePoints[seq+1] !== 'undefined')
+//                myMap.routePoints.splice(seq+1, 1);
+            
+            if(seq == 0) {
+                var firstEle = $('#waypointList ul li:first-child');
+                //console.log(firstEle.attr('id'));
+                if(typeof firstEle.attr('id') != 'undefined') {
+                    // we update onway0 to onway1
+                    var nextVal = $('input', firstEle).val();
+                    var nextId = $('input', firstEle).attr('id').substr(5);
+                    myMap.updateRoute(seq.toString(), myMap.routePointsWI[nextId]);
+                    delete myMap.routePointsWI[nextId];
+                    $('#onway0').val(nextVal);
+                    firstEle.remove();
+                } else {
+                    delete myMap.routePointsWI[0];
+                    p.remove();
+                }
+            } else {
+                myMap.updateRoute(seq, undefined);
+                $(this).parent().parent().remove();
+            }
+        }
+        //console.log(myMap.routePointsWI);
+        //console.log(myMap.routePoints);
+        //console.log('del finished');
     });
 }
 function bindSearchMap() {
@@ -407,10 +494,16 @@ function getWindowContent(cid) {
     return content;
 }
 
+function getNoteForm() {
+    var content = '<div class="notebox"><div class="title">添加备注</div><textarea id="anypoint_note" cols="20" rows="3"></textarea>';
+    content += '<input type="button" id="anypoint_btn" value="确定" class="btn btn-block btn-sm btn-primary"/></div>';
+    return content;
+}
+
 function bindSaveNote(cid) {
-    console.log(cid);
+    //console.log(cid);
     $('#addNote' + cid).click(function() {
-        console.log('ddd');
+        //console.log('ddd');
         alert($('#textarea' + cid).val());
         return false;
     });
@@ -419,5 +512,7 @@ function bindSaveNote(cid) {
 function bindClearMap() {
     $('#clearMap').click(function() {
         myMap.clearMap();
+        myMap.routePoints = [];
+        myMap.routePointsWI = [];
     });
 }
