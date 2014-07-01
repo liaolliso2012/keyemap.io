@@ -15,8 +15,11 @@ var myMap = {
     routePoints: [], // the index of this array should be [0,1,2,3,...,n]
     routePointsWI: [], // the index of this array should be [start, 1, 2, 3, ... , n, end]
     infoWindows: [], // use to store all the info windows
+    notePoints: [], // use to store single point with note box
+    noteBoxes:[], // use to store the info window according to the box id
 
     _c: 0, // use to store the click count of addWayPoint icon
+    _noteboxid: 1, // use to store the index of note box
 
     initMap: function(containerId, centerLat, centerLng, zoomLevel) {
         var map = new BMap.Map(containerId);
@@ -77,20 +80,53 @@ var myMap = {
                 text: '为此点添加备注',
                 callback: function(e) {
                     console.log(e);
-                    var content = document.getElementById('noteboxform');
-                    $('#noteboxform').css('display', 'block');
+                    //e.boxid = e.lat + e.lng;
+                    e.boxid = myMap._noteboxid;
+                    var has = myMap.hasPoint(e);
+                    var ct = '';
+                    
+//                    var content = document.getElementById('noteboxform');
+//                    $(content).first().attr('id', 'notebox'+e.boxid);
+//                    $(content).first().css('display', 'block');
+//                    $('textarea', $(content)).attr('id', 'anypoint_note'+e.boxid);
+//                    $('input', $(content)).attr('id', 'anypoint_btn'+e.boxid);
+                    //bindAddNote(e.boxid);
+                    
+                    //var theContent = content.cloneNode(true);
+                    
+                    if(has) {
+                        // already exist
+                        //notebox.attr('id', 'notebox'+_noteboxid);
+                        ct = myMap.notePoints[e.boxid].content;
+                    } else {
+                        myMap.notePoints[e.boxid] = e;
+                    }
+                    var content = getNoteForm(e.boxid, ct);
+                    //notebox.css('display', 'block');
                     var infoWin = new BMap.InfoWindow(content);
+                    myMap.noteBoxes[e.boxid] = infoWin;
                     var tmpMarker = new BMap.Marker(e);
                     myMap._mapObj.addOverlay(tmpMarker);
                     tmpMarker.openInfoWindow(infoWin);
-                    infoWin.redraw();
-                    bindAddNote();
-//                    $('#anypoint_btn').live('click', function() {
-//                        alert($('#anypoint_note').val());
-//                        tmpMarker.closeInfoWindow();
-//                        return false;
-//                    });
+                    tmpMarker.addEventListener("click", function() {
+                        var point = this.getPosition();
+                        var mhas = myMap.hasPoint(point);
+                        var theCt = '';
+                        console.log(mhas);
+                        console.log(myMap.noteBoxes);
+                        if(mhas) {
+                            theCt = myMap.notePoints[mhas].content;
+                        }
+                        var theInfoWin = new BMap.InfoWindow(content);
+                        myMap.noteBoxes[mhas] = theInfoWin;
+                        tmpMarker.openInfoWindow(theInfoWin);
+                    });
                     
+                    infoWin.redraw();
+                    bindAddNote(e.boxid);
+                    
+                    if(!has)
+                        myMap._noteboxid++;
                 }
             }
 
@@ -102,6 +138,16 @@ var myMap = {
     },
     initDom: function() {
 
+    },
+    
+    hasPoint: function(e) {
+        for(i in myMap.notePoints) {
+            if(myMap.notePoints[i].lat == e.lat && myMap.notePoints[i].lng == e.lng) {
+                return i;
+                break;
+            }
+        }
+        return 0;
     },
     getNewIndex: function(point) {
         var dif = [];
@@ -177,9 +223,9 @@ var myMap = {
         myMap.routePoints = jQuery.grep(myMap.routePoints, function(value) {
             return typeof value != 'undefined';
         });
-        //console.log(myMap.routePointsWI);
-        //console.log(myMap.routePoints);
-        //console.log(myMap.routePoints);
+//        console.log(myMap.routePointsWI);
+//        console.log(myMap.routePoints);
+        
         myMap.clearMap();
 
         var c = myMap.routePoints.length;
@@ -250,6 +296,7 @@ var myMap = {
             myMap._mapObj.addOverlay(polyline);
 
         });
+        myMap._mapObj.setViewport(myMap.routePoints);
         //console.log(myMap.routePointsWI);
         //console.log(myMap.routePoints);
         return;
@@ -496,9 +543,11 @@ function getWindowContent(cid) {
     return content;
 }
 
-function getNoteForm() {
-    var content = '<div class="notebox"><div class="title">添加备注</div><textarea id="anypoint_note" cols="20" rows="3"></textarea>';
-    content += '<input type="button" id="anypoint_btn" value="确定" class="btn btn-block btn-sm btn-primary"/></div>';
+function getNoteForm(noteboxid, ct) {
+    if(typeof ct == 'undefined')
+        ct = '';
+    var content = '<div class="notebox" id="notebox'+noteboxid+'"><div class="title">添加备注</div><textarea id="anypoint_note'+noteboxid+'" cols="20" rows="3">'+ct+'</textarea>';
+    content += '<input type="button" id="anypoint_btn'+noteboxid+'" value="确定" class="btn btn-block btn-sm btn-primary"/></div>';
     return content;
 }
 
@@ -511,11 +560,15 @@ function bindSaveNote(cid) {
     });
 }
 
-function bindAddNote() {
-    $('#anypoint_btn').click(function(){
-        alert($('#anypoint_note').val());
+function bindAddNote(boxid) {
+    console.log('bind add btn' + boxid);
+    $('#anypoint_btn'+boxid).click(function(){
+        alert($('#anypoint_note'+boxid).val());
         // send info to backend
-        
+        myMap.notePoints[boxid].content = $('#anypoint_note'+boxid).val();
+        //console.log(myMap.notePoints[boxid]);
+        //tm.closeInfoWindow(infoWin);
+        return false;
     });
 }
 
