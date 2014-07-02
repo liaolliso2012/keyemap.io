@@ -449,17 +449,14 @@ function bindSearchMap() {
         // clear the route first
         that._mapObj.clearOverlays();
         // check if the point is in the routePoints
-        if (typeof that.routePointsWI['start'] == 'undefined') {
-            that.updateRouteByAddress($('#start'));
-        }
+        that.updateRouteByAddress($('#start'));
         $.each($('input[id^=onway]'), function(k, v) {
             var theId = $(v).attr('id').substr(5);
             if (typeof that.routePointsWI[theId] == 'undefined')
                 that.updateRouteByAddress($(v));
         });
-        if (typeof that.routePointsWI['end'] == 'undefined') {
-            that.updateRouteByAddress($('#end'));
-        }
+        that.updateRouteByAddress($('#end'));
+        //console.log(that.routePointsWI);
         setTimeout(that.generateRoute, 1000);
 
     });
