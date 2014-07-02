@@ -79,21 +79,11 @@ var myMap = {
             {
                 text: '为此点添加备注',
                 callback: function(e) {
-                    console.log(e);
+                    //console.log(e);
                     //e.boxid = e.lat + e.lng;
                     e.boxid = myMap._noteboxid;
                     var has = myMap.hasPoint(e);
                     var ct = '';
-                    
-//                    var content = document.getElementById('noteboxform');
-//                    $(content).first().attr('id', 'notebox'+e.boxid);
-//                    $(content).first().css('display', 'block');
-//                    $('textarea', $(content)).attr('id', 'anypoint_note'+e.boxid);
-//                    $('input', $(content)).attr('id', 'anypoint_btn'+e.boxid);
-                    //bindAddNote(e.boxid);
-                    
-                    //var theContent = content.cloneNode(true);
-                    
                     if(has) {
                         // already exist
                         //notebox.attr('id', 'notebox'+_noteboxid);
@@ -107,13 +97,14 @@ var myMap = {
                     myMap.noteBoxes[e.boxid] = infoWin;
                     var tmpMarker = new BMap.Marker(e);
                     myMap._mapObj.addOverlay(tmpMarker);
+                    
                     tmpMarker.openInfoWindow(infoWin);
                     tmpMarker.addEventListener("click", function() {
                         var point = this.getPosition();
                         var mhas = myMap.hasPoint(point);
                         var theCt = '';
-                        console.log(mhas);
-                        console.log(myMap.noteBoxes);
+                        //console.log(mhas);
+                        //console.log(myMap.noteBoxes);
                         if(mhas) {
                             theCt = myMap.notePoints[mhas].content;
                         }
@@ -200,6 +191,7 @@ var myMap = {
         myMap._mapObj.clearOverlays();
     },
     generateRoute: function() {
+        //console.log('generate route');
         // update routePoints based on routePointsWI
         var start = myMap.routePointsWI['start'];
         var end = myMap.routePointsWI['end'];
@@ -228,7 +220,7 @@ var myMap = {
         
         myMap.clearMap();
 
-        var c = myMap.routePoints.length;
+        var c = parseInt(myMap.routePoints.length);
         if (c < 2) {
             return false;
         }
@@ -239,6 +231,7 @@ var myMap = {
         //console.log('begin search');
         for (i in myMap.routePoints) {
             i = parseInt(i);
+            //console.log(i);
             if (i < c - 1) {
                 if(typeof myMap.routePoints[i] === 'undefined')
                     continue;
@@ -248,47 +241,11 @@ var myMap = {
                 else
                     myLabel = '途经点';
                 myMap._drivingObj.search(myMap.routePoints[i], myMap.routePoints[i + 1]);
-                var tmpMarker = new BMap.Marker(myMap.routePoints[i]);
-                myMap._mapObj.addOverlay(tmpMarker);
-                var tmpLabel = new BMap.Label(myLabel, {position: myMap.routePoints[i]});
-                myMap._mapObj.addOverlay(tmpLabel);
-                // when click on marker, we show infowindow
-                var infoWin = null;
-                var content = getWindowContent(i);
-                infoWin = new BMap.InfoWindow(content);
-                tmpMarker.addEventListener("click", function() {
-                    var tm = this;
-                    tm.openInfoWindow(infoWin);
-                    $('#addNote' + i).click(function() {
-                        alert($('#textarea' + i).val());
-                        tm.closeInfoWindow();
-                        return false;
-                    });
-                });
-                myMap.infoWindows[i] = infoWin;
+                addMarker(myLabel, myMap.routePoints[i], i);
             }
         }
         // add last point marker
-        var tmpMarker = new BMap.Marker(myMap.routePoints[i]);
-        myMap._mapObj.addOverlay(tmpMarker);
-        var tmpLabel = new BMap.Label("终点", {position: myMap.routePoints[i]});
-        myMap._mapObj.addOverlay(tmpLabel);
-        // when click on marker, we show infowindow
-        var infoWin = null;
-        var content = getWindowContent(i);
-        infoWin = new BMap.InfoWindow(content);
-        tmpMarker.addEventListener("click", function() {
-            var tm = this;
-            tm.openInfoWindow(infoWin);
-            $('#addNote' + i).click(function() {
-                alert($('#textarea' + i).val());
-                tm.closeInfoWindow();
-                return false;
-            });
-        });
-        myMap.infoWindows[i] = infoWin;
-
-
+        addMarker('终点', myMap.routePoints[c-1], c-1);
         // set search callback
         myMap._drivingObj.setSearchCompleteCallback(function() {
             var pts = myMap._drivingObj.getResults().getPlan(0).getRoute(0).getPath();    //通过驾车实例，获得一系列点的数组
@@ -464,7 +421,7 @@ function bindSearchMap() {
 function bindPolicySearch() {
     $('.policyBtn').click(function() {
         var thePolicy = $(this).attr('data-po');
-        console.log('Change policy to ' + thePolicy);
+        //console.log('Change policy to ' + thePolicy);
         switch (thePolicy) {
             case 'leastTime':
                 myMap._drivingObj.setPolicy(BMAP_DRIVING_POLICY_LEAST_TIME);
@@ -513,11 +470,7 @@ function autoCompleteIt(eid) {
                         var tm = this;
                         tm.openInfoWindow(infoWin);
                         infoWin.redraw();
-                        $('#addNote' + cid).click(function() {
-                            alert($('#textarea' + cid).val());
-                            tm.closeInfoWindow();
-                            return false;
-                        });
+                        bindSaveNote(cid);
                     });
                     myMap.infoWindows[cid] = infoWin;
                 } else {
@@ -550,19 +503,25 @@ function getNoteForm(noteboxid, ct) {
 
 function bindSaveNote(cid) {
     //console.log(cid);
-    $('#addNote' + cid).click(function() {
-        //console.log('ddd');
-        alert($('#textarea' + cid).val());
+    if(cid == 0)
+        cid = 'start';
+    if(cid == (parseInt(myMap.routePoints.length) -1))
+        cid = 'end';
+    $('#addNote'+cid).click(function(){
+        alert($('#textarea'+cid).val());
+        // send info to backend
+        
+        //tm.closeInfoWindow(infoWin);
         return false;
     });
 }
 
 function bindAddNote(boxid) {
-    console.log('bind add btn' + boxid);
+    //console.log('bind add btn' + boxid);
     $('#anypoint_btn'+boxid).click(function(){
         alert($('#anypoint_note'+boxid).val());
         // send info to backend
-        myMap.notePoints[boxid].content = $('#anypoint_note'+boxid).val();
+        //myMap.notePoints[boxid].content = $('#anypoint_note'+boxid).val();
         //console.log(myMap.notePoints[boxid]);
         //tm.closeInfoWindow(infoWin);
         return false;
@@ -575,4 +534,22 @@ function bindClearMap() {
         myMap.routePoints = [];
         myMap.routePointsWI = [];
     });
+}
+
+function addMarker(label, point, i) {
+    var tmpMarker = new BMap.Marker(point);
+    myMap._mapObj.addOverlay(tmpMarker);
+    var tmpLabel = new BMap.Label(label, {position: point});
+    myMap._mapObj.addOverlay(tmpLabel);
+    // when click on marker, we show infowindow
+    var infoWin = null;
+    var content = getWindowContent(i);
+    infoWin = new BMap.InfoWindow(content);
+    tmpMarker.addEventListener("click", function() {
+        var tm = this;
+        tm.openInfoWindow(infoWin);
+        infoWin.redraw();
+        bindSaveNote(i);
+    });
+    myMap.infoWindows[i] = infoWin;
 }
