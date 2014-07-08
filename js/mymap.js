@@ -57,6 +57,7 @@ var myMap = {
                 callback: function(e) {
                     var idx = myMap.getNewIndex(e);
                     //console.log(idx);
+                    myMap.routePointsWI.splice(idx, 0, e);
                     myMap.routePoints.splice(idx, 0, e);
                     //console.log(myMap.routePoints);
                     myMap.generateRoute();
