@@ -1,17 +1,17 @@
 var myMap = {
     _mapObj: null, // 地图实例
     _drivingObj: null, //驾车实例
-    _geo: null,
+    _geo: null, // 用来坐标转换的
     _currentRoute: null, // 当前路线
-    _startIcon: '',
-    _endIcon: '',
-    _locIcon: '',
+    _startIcon: '', // 起始位置图标 （未用）
+    _endIcon: '', // 终点位置图标 （未用）
+    _locIcon: '', // 一般位置图标
     _startPointM: '', // start point marker
     _endPointM: '', // end point marker
-    _containerId: '',
-    _centerLat: '',
-    _centerLng: '',
-    _zoomLevel: 7,
+    _containerId: '', // 地图容器id
+    _centerLat: '', // 中心点纬度
+    _centerLng: '', // 中心点经度
+    _zoomLevel: 7, // 缩放级别
     routePoints: [], // the index of this array should be [0,1,2,3,...,n]
     routePointsWI: [], // the index of this array should be [start, 1, 2, 3, ... , n, end]
     infoWindows: [], // use to store all the info windows
@@ -22,6 +22,7 @@ var myMap = {
     _noteboxid: 1, // use to store the index of note box
 
     initMap: function(containerId, centerLat, centerLng, zoomLevel) {
+        //初始化地图，包括生成一些控件，产生一些后边用到的对象，menu之类
         var map = new BMap.Map(containerId);
         this._centerLat = centerLat;
         this._centerLng = centerLng;
@@ -94,12 +95,15 @@ var myMap = {
                     }
                     var content = getNoteForm(e.boxid, ct);
                     //notebox.css('display', 'block');
+                    
+                    //生成一个infowindow对象
                     var infoWin = new BMap.InfoWindow(content);
                     myMap.noteBoxes[e.boxid] = infoWin;
                     var tmpMarker = new BMap.Marker(e);
                     myMap._mapObj.addOverlay(tmpMarker);
                     
                     tmpMarker.openInfoWindow(infoWin);
+                    // 监听click marker的事件
                     tmpMarker.addEventListener("click", function() {
                         var point = this.getPosition();
                         var mhas = myMap.hasPoint(point);
@@ -111,10 +115,12 @@ var myMap = {
                         }
                         var theInfoWin = new BMap.InfoWindow(content);
                         myMap.noteBoxes[mhas] = theInfoWin;
+                        // 打开备注窗口
                         tmpMarker.openInfoWindow(theInfoWin);
                     });
                     
                     infoWin.redraw();
+                    // 绑定事件到备注窗口的button上
                     bindAddNote(e.boxid);
                     
                     if(!has)
@@ -133,6 +139,7 @@ var myMap = {
     },
     
     hasPoint: function(e) {
+        // 用来判断js缓存的备注点中是否有此点， myMap.notePoints用来缓存添加备注的点
         for(i in myMap.notePoints) {
             if(myMap.notePoints[i].lat == e.lat && myMap.notePoints[i].lng == e.lng) {
                 return i;
@@ -142,6 +149,7 @@ var myMap = {
         return 0;
     },
     getNewIndex: function(point) {
+        // 当添加途经点时，用来确定该途经点应该插在已有路线坐标点数组的哪个位置上
         var dif = [];
         for (i in myMap.routePoints) {
             var tmp = {};
@@ -164,9 +172,11 @@ var myMap = {
     },
     updateRoute: function(cid, thePoint) {
         //console.log('update routePoints');
+        // 用来更新缓存里的坐标点数据，该数据索引为[start, 0, 1, 2, ..., end]
         this.routePointsWI[cid] = thePoint;
     },
     updateRouteByAddress: function(elm) {
+        // 有时用户可能没有通过autocomplete产生的列表里选择地点，这时需要通过输入框数据来确定该点
         if (!elm)
             return false;
         var cid = elm.attr('id');
@@ -188,15 +198,18 @@ var myMap = {
         }, myValue);
     },
     clearMap: function() {
+        // 去除地图上的路线和一些overlay，但缓存数据依然在。
         myMap._drivingObj.clearResults();
         myMap._mapObj.clearOverlays();
     },
     generateRoute: function() {
+        // 生成路线，主要通过 routePointsWI 来确定 routePoints,然后绘制地图
         //console.log('generate route');
         // update routePoints based on routePointsWI
         var start = myMap.routePointsWI['start'];
         var end = myMap.routePointsWI['end'];
         var max = 0;
+        // 每次生成地图，需要清除原有数据
         myMap.routePoints = [];
         for (i in myMap.routePointsWI) {
             //console.log(i);
@@ -275,7 +288,7 @@ var myMap = {
 };
 
 
-
+// 获取关联数组的元素个数
 Object.size = function(obj) {
     var size = 0, key;
     for (key in obj) {
@@ -284,7 +297,7 @@ Object.size = function(obj) {
     }
     return size;
 };
-
+// 排序所用
 var compare = function(a, b) {
     if (a.diff < b.diff)
         return -1;
@@ -293,6 +306,7 @@ var compare = function(a, b) {
     return 0;
 };
 
+// 提示信息
 var showMsg = function(msg, elm, msgType) {
     if (typeof msgType === 'undefined')
         msgType = 'error';
@@ -320,7 +334,7 @@ function addRoute(path) {
         enableClicking: false
     }));
 }
-
+// 绑定添加途经点事件
 function bindAddWaypoint() {
     $('#addWaypoint').tooltip();
     $("#addWaypoint").on('click', $('.end'), function() {
@@ -335,7 +349,7 @@ function bindAddWaypoint() {
             $(input).insertBefore($(this).parent());
             $('#showOnwayList').tooltip();
             $('.fui-cross').tooltip();
-            autoCompleteIt('onway0');
+            autoCompleteIt('onway0'); // 自动完成功能
             bindDelwp($('#onway0').parent());
         } else {
             if (p.children().length == 3) {
@@ -360,6 +374,7 @@ function bindAddWaypoint() {
     
 }
 
+// 绑定删除途经点事件
 function bindDelwp(p) {
     $('.delwp', p).click(function(){
         //console.log('del it');
@@ -368,14 +383,6 @@ function bindDelwp(p) {
         var theId = $(this).prev().attr('id');
         if(theId){
             var seq = parseInt(theId.substr(5));
-//            // remove it from routePointsWI
-//            if(typeof myMap.routePointsWI[seq] !== 'undefined')
-//                myMap.routePointsWI.splice(seq, 1);
-//            
-//            // remove it from routePoints
-//            if(typeof myMap.routePoints[seq+1] !== 'undefined')
-//                myMap.routePoints.splice(seq+1, 1);
-            
             if(seq == 0) {
                 var firstEle = $('#waypointList ul li:first-child');
                 //console.log(firstEle.attr('id'));
@@ -401,24 +408,28 @@ function bindDelwp(p) {
         //console.log('del finished');
     });
 }
+// 绑定搜索按钮事件
 function bindSearchMap() {
     var that = myMap;
     $("#searchMap").click(function() {
         // clear the route first
         that._mapObj.clearOverlays();
-        // check if the point is in the routePoints
+        // 根据输入框来更新缓存起始点的数据
         that.updateRouteByAddress($('#start'));
         $.each($('input[id^=onway]'), function(k, v) {
             var theId = $(v).attr('id').substr(5);
             if (typeof that.routePointsWI[theId] == 'undefined')
                 that.updateRouteByAddress($(v));
         });
+        // 根据输入框来更新缓存里终点的数据
         that.updateRouteByAddress($('#end'));
         //console.log(that.routePointsWI);
         setTimeout(that.generateRoute, 1000);
 
     });
 }
+
+// 绑定策略点击事件
 function bindPolicySearch() {
     $('.policyBtn').click(function() {
         var thePolicy = $(this).attr('data-po');
@@ -439,6 +450,7 @@ function bindPolicySearch() {
     });
 }
 
+// 用来给指定元素添加自动完成功能
 function autoCompleteIt(eid) {
     var elm = $('#' + eid);
     var cid = eid;
@@ -483,6 +495,7 @@ function autoCompleteIt(eid) {
     }
 }
 
+// 获取添加备注的html代码
 function getWindowContent(cid) {
     if (cid == 0)
         cid = 'start';
@@ -494,6 +507,7 @@ function getWindowContent(cid) {
     return content;
 }
 
+// 获取添加备注的表单内容， 可能表单中textarea已经有值
 function getNoteForm(noteboxid, ct) {
     if(typeof ct == 'undefined')
         ct = '';
@@ -502,6 +516,7 @@ function getNoteForm(noteboxid, ct) {
     return content;
 }
 
+// 绑定提交备注事件
 function bindSaveNote(cid) {
     //console.log(cid);
     if(cid == 0)
@@ -517,6 +532,7 @@ function bindSaveNote(cid) {
     });
 }
 
+// 绑定坐标任意一点的备注添加功能
 function bindAddNote(boxid) {
     //console.log('bind add btn' + boxid);
     $('#anypoint_btn'+boxid).click(function(){
@@ -529,6 +545,7 @@ function bindAddNote(boxid) {
     });
 }
 
+// 绑定事件到清理地图按钮，这里会把缓存数据给清掉
 function bindClearMap() {
     $('#clearMap').click(function() {
         myMap.clearMap();
@@ -537,6 +554,7 @@ function bindClearMap() {
     });
 }
 
+// 添加marker
 function addMarker(label, point, i) {
     var tmpMarker = new BMap.Marker(point);
     myMap._mapObj.addOverlay(tmpMarker);
