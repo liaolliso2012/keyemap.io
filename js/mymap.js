@@ -25,7 +25,7 @@ var myMap = {
 
     onwayBoxes: [], // use to store the onway box windows
     onwayBoxMarkers: [], // use to store the onway markers of the note box
-    
+
 
     initMap: function(containerId, centerLat, centerLng, zoomLevel) {
         var map = new BMap.Map(containerId);
@@ -61,11 +61,21 @@ var myMap = {
             {
                 text: '以此为途经点',
                 callback: function(e) {
-                    var idx = myMap.getNewIndex(e);
-                    //console.log(idx);
-                    myMap.routePointsWI.splice(idx, 0, e);
-                    myMap.routePoints.splice(idx, 0, e);
-                    myMap.generateRoute();
+                    if (Object.size(myMap.routePointsWI) < 2) {
+                        showMsg('请先确定起点和终点！', $('#start'));
+                        return false;
+                    }
+                    // get address 
+                    myMap._geo.getLocation(e, function(rs) {
+                        if (rs.address) {
+                            e.title = rs.address;
+                            var idx = myMap.getNewIndex(e);
+                            myMap.routePointsWI.splice(idx, 0, e);
+                            myMap.routePoints.splice(idx, 0, e);
+                            myMap.updateWaypoints(e);
+                            myMap.generateRoute();
+                        }
+                    });
                 }
             },
             {
@@ -104,7 +114,10 @@ var myMap = {
 
     },
     hasPoint: function(points, e) {
+        //console.log(points);
         for (i in points) {
+            if(typeof points[i] === 'undefined')
+                continue;
             if (points[i].lat == e.lat && points[i].lng == e.lng) {
                 return i;
                 break;
@@ -137,6 +150,16 @@ var myMap = {
         //console.log('update routePoints');
         this.routePointsWI[cid] = thePoint;
     },
+    updateWaypoints: function(e) {
+        $('#addWaypoint').click();
+        var inputs = $('input[id^=onway]');
+        for(i=0;i<inputs.length;i++) {
+            var idx = $(inputs[i]).attr('id').substr(5);
+            $('#onway'+idx).val(myMap.routePointsWI[idx].title);
+        }
+        //$('#onway'+idx).val(myMap.routePoints[idx].title);
+
+    },
     updateRouteByAddress: function(elm) {
         if (!elm)
             return false;
@@ -153,7 +176,7 @@ var myMap = {
                 elm.parent().removeClass('has-error');
                 myMap.updateRoute(cid, point);
             } else {
-                showMsg('无法找到该地点经纬度，请使用其它地点！');
+                showMsg('无法找到该地点经纬度，请使用其它地点！', elm);
                 return false;
             }
         }, myValue);
@@ -163,8 +186,7 @@ var myMap = {
         myMap._mapObj.clearOverlays();
     },
     generateRoute: function() {
-        console.log('generate route');
-        
+        //console.log('generate route');
         // update routePoints based on routePointsWI
         var start = myMap.routePointsWI['start'];
         var end = myMap.routePointsWI['end'];
@@ -199,10 +221,10 @@ var myMap = {
         myMap.routePoints.sort(function(a, b) {
             return parseInt(a) > parseInt(b) ? 1 : -1
         });
-        console.log(myMap.routePointsWI);
-        console.log(myMap.routePoints);
-        console.log('begin search');
-        
+        //console.log(myMap.routePointsWI);
+        //console.log(myMap.routePoints);
+        //console.log('begin search');
+
         for (i in myMap.routePoints) {
             i = parseInt(i);
             //console.log(i);
@@ -216,13 +238,13 @@ var myMap = {
                     boxpostfix = 'start';
                 } else {
                     myLabel = '途经点';
-                    boxpostfix = i;
+                    boxpostfix = i-1;
                 }
                 myMap._drivingObj.search(myMap.routePoints[i], myMap.routePoints[i + 1]);
                 addMarker(myLabel, myMap.routePoints[i], boxpostfix);
             }
         }
-        console.log('end search');
+        //console.log('end search');
         // add last point marker
         addMarker('终点', myMap.routePointsWI['end'], 'end');
         // set search callback
@@ -250,10 +272,9 @@ var myMap = {
             icon: myMap._endIcon
         });
     },
-    
     drawAnywayPoints: function() {
-        if(Object.size(myMap.notePoints) > 0) {
-            for(i in myMap.notePoints) {
+        if (Object.size(myMap.notePoints) > 0) {
+            for (i in myMap.notePoints) {
                 addNoteMarker('', myMap.notePoints[i]);
             }
         }
@@ -446,9 +467,9 @@ function autoCompleteIt(eid) {
                     //console.log(cid);
                     myMap.updateRoute(cid, point);
                     addMarker('', point, cid)
-                    
+
                 } else {
-                    showMsg('无法找到该地点经纬度，请使用其它地点！');
+                    showMsg('无法找到该地点经纬度，请使用其它地点！', elm);
                     return false;
                 }
             }, _value.city);
@@ -459,7 +480,7 @@ function autoCompleteIt(eid) {
 function getWindowContent(cid, ct) {
     if (typeof ct == 'undefined')
         ct = '';
-    var content = '<div class="notebox" id="onwaynotebox' + cid + '"><div class="title">添加备注</div><textarea id="textarea' + cid + '" cols="20" rows="3">'+ct+'</textarea>';
+    var content = '<div class="notebox" id="onwaynotebox' + cid + '"><div class="title">添加备注</div><textarea id="textarea' + cid + '" cols="20" rows="3">' + ct + '</textarea>';
     content += '<input type="button" id="addnote' + cid + '" value="确定" class="btn btn-block btn-sm btn-primary"/></div>';
 
     return content;
@@ -474,13 +495,13 @@ function getNoteForm(noteboxid, ct) {
 }
 
 function bindSaveNote(cid) {
-    $('#addnote' + cid+'').click(function() {
+    $('#addnote' + cid + '').click(function() {
         console.log('Send data:' + $('#textarea' + cid).val() + ' to backend');
         /*******************发送数据到后台保存*********************/
 
         /*******************发送数据到后台保存*********************/
-        myMap.onwayBoxMarkers[cid+''].content = $('#textarea' + cid).val();
-        myMap.onwayBoxMarkers[cid+''].closeInfoWindow(myMap.onwayBoxes[cid+'']);
+        myMap.onwayBoxMarkers[cid + ''].content = $('#textarea' + cid).val();
+        myMap.onwayBoxMarkers[cid + ''].closeInfoWindow(myMap.onwayBoxes[cid + '']);
         return;
     });
 }
@@ -507,13 +528,15 @@ function bindClearMap() {
 }
 
 function addMarker(label, point, cid) {
-    var tmpMarker = myMap.onwayBoxMarkers[cid];
-    if(typeof tmpMarker === 'undefined') { 
-        tmpMarker = new BMap.Marker(point);
-        myMap._mapObj.addOverlay(tmpMarker);
-    } else
-        myMap._mapObj.addOverlay(myMap.onwayBoxMarkers[cid]);
-    if(label != '') {
+//    var tmpMarker = myMap.onwayBoxMarkers[cid];
+//    if (typeof tmpMarker === 'undefined') {
+//        tmpMarker = new BMap.Marker(point);
+//        myMap._mapObj.addOverlay(tmpMarker);
+//    } else
+//        myMap._mapObj.addOverlay(myMap.onwayBoxMarkers[cid]);
+    var tmpMarker = new BMap.Marker(point);
+    myMap._mapObj.addOverlay(tmpMarker);
+    if (label != '') {
         var tmpLabel = new BMap.Label(label, {position: point});
         myMap._mapObj.addOverlay(tmpLabel);
     }
@@ -542,19 +565,22 @@ function addMarker(label, point, cid) {
 }
 
 function addNoteMarker(label, e, status) {
-    if(typeof status == 'undefined')
+    if (typeof status == 'undefined')
         status = 'closed';
     var content = getNoteForm(e.boxid);
     var infoWin = new BMap.InfoWindow(content);
     myMap.noteBoxes[e.boxid] = infoWin;
     var tmpMarker = new BMap.Marker(e);
     myMap._mapObj.addOverlay(tmpMarker);
-    if(label != '') {
+    if (label != '') {
         var tmpLabel = new BMap.Label(label, {position: e});
         myMap._mapObj.addOverlay(tmpLabel);
     }
-    if(status == 'open')
+    if (status == 'open') {
         tmpMarker.openInfoWindow(infoWin);
+        infoWin.redraw();
+        setTimeout(bindAddNote, 500, e.boxid); // 防止第一次不能绑定上事件，延迟绑定
+    }
     tmpMarker.addEventListener("click", function() {
         var point = this.getPosition();
         var mhas = myMap.hasPoint(myMap.notePoints, point);
@@ -567,9 +593,10 @@ function addNoteMarker(label, e, status) {
         var content = getNoteForm(e.boxid, theCt);
         var theInfoWin = new BMap.InfoWindow(content);
         tmpMarker.openInfoWindow(theInfoWin);
+        theInfoWin.redraw();
         bindAddNote(e.boxid);
     });
     myMap.noteBoxMarkers[e.boxid] = tmpMarker;
-    infoWin.redraw();
-    bindAddNote(e.boxid);
+    return true;
+
 }
